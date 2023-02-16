@@ -1,6 +1,6 @@
 # cruisedetector
 ## Introduction
-This manual describes how to use the GPS cruising identification model developed by the Federal Highway Administration.  Any user with a working knowledge of GIS and simple database skills should be able to implement the system with the aid of information presented here.
+This manual describes how to use the Cruise Detector, a GPS cruising identification model developed by the Federal Highway Administration.  Any user with a working knowledge of GIS and simple database skills should be able to implement the system with the aid of information presented here.
 
 This tool uses GPS data to estimate the proportion of trips that are cruising for parking.
 
