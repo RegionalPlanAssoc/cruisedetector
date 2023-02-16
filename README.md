@@ -17,7 +17,7 @@ psycopg2 2.5.2+
 sqlalchemy 1.1.6+
 docopt 0.6.1+
 
-Create a base directory, and download the [cruising](https://github.com/amillb/cruising) and [pgMapMatch](https://github.com/amillb/pgMapMatch) repositories to that directory, and download the [sample location data](https://drive.google.com/file/d/1R1Vu1DW4EewiQ7_Wezf4C62bZDhUzjfp/view?usp=sharing) to the cruising folder. Add a folder titled `output` to store logs, and unzip the sampleLocationData folder if using. Download osm2po to a directory with no spaces in its path.
+Create a base directory, and download the [cruising](https://github.com/RegionalPlanAssoc/cruisedetector) and [pgMapMatch](https://github.com/amillb/pgMapMatch) repositories to that directory, and download the [sample location data](https://drive.google.com/file/d/1R1Vu1DW4EewiQ7_Wezf4C62bZDhUzjfp/view?usp=sharing) to the cruising folder. Add a folder titled `output` to store logs, and unzip the sampleLocationData folder if using. Download osm2po to a directory with no spaces in its path.
 
 ## Data Requirements and Format
 ### Street Network
