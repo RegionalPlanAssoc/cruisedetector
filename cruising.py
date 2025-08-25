@@ -110,7 +110,7 @@ def loadTables(region=None):
             cmd = "java -Xmx5g -jar %sosm2po-%s/osm2po-core-%s-signed.jar tileSize=x cmd=c prefix=%s_osm %s" % (osm2poPath, osm2poVersion, osm2poVersion, region, osm2poPath+osmDict[region])
             subprocess.run([cmd], shell=True, check=True, capture_output=True)
         except Exception as err:
-            print(f"{err} {err.stderr.decode('utf8')}”)
+            print(f"{err} {err.stderr.decode('utf8')}")
             raise err
 
 
@@ -122,14 +122,14 @@ def loadTables(region=None):
             cmd = """psql -d %s -h %s -U %s -q -f %s%s_osm/%s_osm_2po_4pgr.sql""" % (pgInfo['db'], pgInfo['host'], pgInfo['user'], osm2poPath, region, region)
             subprocess.run([cmd], shell=True, check=True, capture_output=True)
         except Exception as err:
-            print(f"{err} {err.stderr.decode('utf8')}”)
+            print(f"{err} {err.stderr.decode('utf8')}")
             raise err
         # table of turn restrictions
         try: # assert os.system("psql -d %s -h %s -U %s -q -f %s%s_osm/%s_osm_2po_vertex.sql" % (pgInfo['db'], pgInfo['host'], pgInfo['user'], osm2poPath, region, region))==0
             cmd = "psql -d %s -h %s -U %s -q -f %s%s_osm/%s_osm_2po_vertex.sql" % (pgInfo['db'], pgInfo['host'], pgInfo['user'], osm2poPath, region, region)
             subprocess.run([cmd], shell=True, check=True, capture_output=True)
         except Exception as err:
-            print(f"{err} {err.stderr.decode('utf8')}”)
+            print(f"{err} {err.stderr.decode('utf8')}")
             raise err
         #assert os.system("rm -r %s%s_osm" % (osm2poPath, region))==0
 
