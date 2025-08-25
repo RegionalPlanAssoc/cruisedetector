@@ -16,11 +16,11 @@ if sys.version_info < (3, 0):
     sys.exit(1)
 from pathlib import Path
 
-""" 
+"""
 Defaults that the user should change
 """
 # 1. Basepath and output folder for log
-basePath = 'G:/Shared drives/Projects/3090_Cruising for Parking/Data/testing/'
+basePath = 'C:/cruise_base/'#'G:/Shared drives/Projects/3090_Cruising for Parking/Data/testing/'
 
 # 2. Which regions to load streets and other data for
 defaults = {}
@@ -38,12 +38,12 @@ logPath = '.'
 sys.path.append(basePath)
 
 # 6. Path for osm2po with no spaces
-osm2poPath = 'C:/Downloads/'
-osm2poVersion = '5.5.1'
+osm2poPath = 'C:/cruise_base/' # 'C:/Downloads/'
+osm2poVersion = '5.5.16' # '5.5.1'
 
 # 7. Location of mapmatching coefficient file (in this git repo). You shouldn't need to change this.
 # https://stackoverflow.com/questions/3718657/how-do-you-properly-determine-the-current-script-directory
-repoPath = Path(globals().get("__file__", "./_")).absolute().parent 
+repoPath = Path(globals().get("__file__", "./_")).absolute().parent
 coeffFn = str(repoPath) + '/mapmatching_coefficients.txt'
 
 # 8. Specify number of processing cores to be used
@@ -62,12 +62,14 @@ from pgMapMatch.config import *
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
+import subprocess
+
 # key parameters
 maxDistThres = 1400 # maximum distance that the trace can get from the endpoint, once it enters the 400m buffer
 rollSecs = 30       # speed threshold for identification of walking segment at end of trip, and number of secs over which speed is calculated
 wSpeed = 6          # assumed maximum walking speed (km/h)
 bufferThresh = 0.5  # to be considered cruising, at least this fraction of the last portion of the trip must be within the 400m buffer
-qualityCutoff = 0.9 # To be retained, a trip must have at least this probability of being good 
+qualityCutoff = 0.9 # To be retained, a trip must have at least this probability of being good
 r = '400'           # the buffer radius (meters)
 rd = str(int(r)*2)  # radius of donut
 mapmatch_timeout  = 300        # timeout for each individual postgres query, in seconds. Making it shorter will skip long and stubborn traces
@@ -80,39 +82,55 @@ def loadTables(region=None):
     """
     if region is not None: assert region in defaults['regions']
     regions = defaults['regions'] if region is None else [region]
-    
+
     db = mmt.dbConnection(pgLogin=pgInfo)
     engine = mmt.getPgEngine(pgInfo)
 
-    for region in regions:    
+    for region in regions:
         for table in ['osm_2po_4pgr', 'osm_2po_vertex', 'turn_restrictions', 'streets', 'curblines', 'off_street']:
             db.execute('DROP TABLE IF EXISTS %s_%s;' % (region,table))
         if region=='sf':
             for table in ['sfpark_blocks','sf_meters','sensors', 'pr_full_predictions']:
                 db.execute('DROP TABLE IF EXISTS %s;' % (table))
-    
+
     """
     1. Load OSM street network using osm2po
-    
+
     osm2po downloaded June 9, 2015 from osm2po.de
         See http://planet.qgis.org/planet/tag/osm2po/
         Make following changes to osm2po config file (for the first one, see http://gis.stackexchange.com/questions/41393/does-osm2po-take-into-consideration-turn-restrictions)
-            1. postp.1.class = de.cm.osm2po.plugins.postp.PgVertexWriter 
+            1. postp.1.class = de.cm.osm2po.plugins.postp.PgVertexWriter
             2. graph.build.excludeWrongWays = true
     """
     os.chdir(osm2poPath)
-    
+
     osmDict = {'sf':'san-francisco_california.osm.pbf', 'mi':'michigan-latest.osm.pbf', 'ca':'california-latest.osm.pbf', 'wa':'washington-latest.osm.pbf'}
     for region in regions:
-        assert os.system("java -Xmx5g -jar %sosm2po-%s/osm2po-core-%s-signed.jar tileSize=x cmd=c prefix=%s_osm %s" % (osm2poPath, osm2poVersion, osm2poVersion, region, osm2poPath+osmDict[region]))==0
+        try: # assert os.system("java -Xmx5g -jar %sosm2po-%s/osm2po-core-%s-signed.jar tileSize=x cmd=c prefix=%s_osm %s" % (osm2poPath, osm2poVersion, osm2poVersion, region, osm2poPath+osmDict[region]))==0
+            cmd = "java -Xmx5g -jar %sosm2po-%s/osm2po-core-%s-signed.jar tileSize=x cmd=c prefix=%s_osm %s" % (osm2poPath, osm2poVersion, osm2poVersion, region, osm2poPath+osmDict[region])
+            subprocess.run([cmd], shell=True, check=True, capture_output=True)
+        except Exception as err:
+            print(f"{err} {err.stderr.decode('utf8')}”)
+            raise err
+
 
     # table of streets
     for region in regions:
         st_table = region+'_streets'
         print ('Loading streets for %s into table %s' % (region, st_table))
-        assert os.system("""psql -d %s -h %s -U %s -q -f %s%s_osm/%s_osm_2po_4pgr.sql""" % (pgInfo['db'], pgInfo['host'], pgInfo['user'], osm2poPath, region, region))==0
+        try: # assert os.system("""psql -d %s -h %s -U %s -q -f %s%s_osm/%s_osm_2po_4pgr.sql""" % (pgInfo['db'], pgInfo['host'], pgInfo['user'], osm2poPath, region, region))==0
+            cmd = """psql -d %s -h %s -U %s -q -f %s%s_osm/%s_osm_2po_4pgr.sql""" % (pgInfo['db'], pgInfo['host'], pgInfo['user'], osm2poPath, region, region)
+            subprocess.run([cmd], shell=True, check=True, capture_output=True)
+        except Exception as err:
+            print(f"{err} {err.stderr.decode('utf8')}”)
+            raise err
         # table of turn restrictions
-        assert os.system("psql -d %s -h %s -U %s -q -f %s%s_osm/%s_osm_2po_vertex.sql" % (pgInfo['db'], pgInfo['host'], pgInfo['user'], osm2poPath, region, region))==0
+        try: # assert os.system("psql -d %s -h %s -U %s -q -f %s%s_osm/%s_osm_2po_vertex.sql" % (pgInfo['db'], pgInfo['host'], pgInfo['user'], osm2poPath, region, region))==0
+            cmd = "psql -d %s -h %s -U %s -q -f %s%s_osm/%s_osm_2po_vertex.sql" % (pgInfo['db'], pgInfo['host'], pgInfo['user'], osm2poPath, region, region)
+            subprocess.run([cmd], shell=True, check=True, capture_output=True)
+        except Exception as err:
+            print(f"{err} {err.stderr.decode('utf8')}”)
+            raise err
         #assert os.system("rm -r %s%s_osm" % (osm2poPath, region))==0
 
         # rename and project to 3494
@@ -121,8 +139,8 @@ def loadTables(region=None):
         db.execute("ALTER TABLE %s_osm_2po_4pgr RENAME TO %s;" % (region, st_table))
         db.execute("ALTER TABLE %s ALTER COLUMN geom_way TYPE Geometry(LineString, %s) USING ST_Transform(geom_way, %s);" % (st_table, crs[region], crs[region]))
         db.execute("ALTER TABLE %s_osm_2po_vertex ALTER COLUMN geom_vertex TYPE Geometry(Point, %s) USING ST_Transform(geom_vertex, %s);" % (region, crs[region], crs[region]))
-    
-    
+
+
     for region in regions:
         st_table = region+'_streets'
         rest_table = region+'_turn_restrictions'
@@ -157,9 +175,9 @@ def loadTables(region=None):
         noTurns.to_sql(rest_table, engine, schema=pgInfo['schema'], if_exists='replace', index=True)
         db.fix_permissions_of_new_table(rest_table)
         db.execute('DROP TABLE %s_osm_2po_vertex' % region)
-    
-    
-    
+
+
+
     print ("Done loading tables")
     return
 
@@ -171,15 +189,15 @@ class traceTable():
         """
         table: name of the Postgres table with the GPS traces
         region: the prefix of the streets and other input tables (e.g. ca_streets)
-        nCores: the number of parallel processing cores. If None, no parallelization will be done  
+        nCores: the number of parallel processing cores. If None, no parallelization will be done
         schema: the Postgres schema where the above tables are contained
-        logFn: name of the output log file 
+        logFn: name of the output log file
         forceUpdate: if True, the analysis will run from scratch, e.g. deleting the tables and columns already created
                      Otherwise, it will try and pick up from where it left off (but this can be unstable)
         """
         self.table = table
         self.region = region
-        self.nCores = nCores 
+        self.nCores = nCores
         try:
             self.srs = crs[self.region]
         except:
@@ -224,24 +242,24 @@ class traceTable():
             self.db.execute('CREATE INDEX IF NOT EXISTS {tn}_{idx}_idx ON {tn} ({idx});'.format(idx=idx, tn=tn))
 
         self.writeLog('\n____________PROCESSING TRACES table %s____________\n' % (self.table))
-   
+
     def writeLog(self, txt):
         """
         Writes txt to the log file, with the timestamp
-        """ 
+        """
         assert isinstance(txt, str)
         currentTime = datetime.datetime.now().strftime("%I:%M%p %B %d, %Y")
         with open(self.logFn,'a') as f:
             f.write(currentTime+':\t: '+txt)
             print(currentTime+':\t: '+txt)
-            
+
     def getIds(self):
         """Gets the ids of each trip (i.e., GPS trace), if they don't already exist in self.ids"""
         if self.ids is None:
             ids = self.db.execfetch('SELECT trip_id FROM %s' % (self.table))
-            self.ids = sorted([ii[0] for ii in ids])   
+            self.ids = sorted([ii[0] for ii in ids])
         return self.ids
-        
+
     def getNPings(self,geom='lbuff_geom'):
         """Get the number of GPS pings within the buffer for each trip"""
         result = self.db.execfetch('SELECT trip_id, COALESCE(ST_NPoints(%s),0) FROM %s ORDER BY trip_id;' % (geom, self.table))
@@ -250,7 +268,7 @@ class traceTable():
 
     def dropErrantPings(self):
         if 'lines_original' in self.db.list_columns_in_table(self.table):
-            if self.forceUpdate: 
+            if self.forceUpdate:
                 self.db.execute('UPDATE %s SET lines_geom=lines_original' % (self.table))
                 self.db.execute('ALTER TABLE %s DROP COLUMN lines_original' % (self.table))
                 self.db.execute('ALTER TABLE %s DROP COLUMN IF EXISTS lines_tmp' % (self.table))
@@ -259,24 +277,24 @@ class traceTable():
                 return
         self.db.execute("SELECT AddGeometryColumn('%s','lines_original',%s,'LineStringM',3);" % (self.table, self.srs))
         self.db.execute("SELECT AddGeometryColumn('%s','lines_tmp',%s,'LineStringM',3);" % (self.table, self.srs))
-        
+
         # Drop first point of lines where the 'true' starting point exists. This is because GPS error is highest with the first point
         self.db.execute('UPDATE %s SET lines_original = lines_geom' % self.table)
         if 'start_good' in self.db.list_columns_in_table(self.table): # only for SL traces
-            self.db.execute('''UPDATE %s SET lines_tmp = 
+            self.db.execute('''UPDATE %s SET lines_tmp =
                                CASE WHEN start_good is True AND ST_NPoints(lines_geom)>2 THEN ST_RemovePoint(lines_geom, 0)
                                ELSE lines_geom END;''' % self.table)
-        
+
             # Drop pings that are over a speed threshold
-            tc = mm.traceCleaner(self.table,'trip_id','lines_tmp', 'lines_geom', logFn=None)  # don't log because file is large!        
+            tc = mm.traceCleaner(self.table,'trip_id','lines_tmp', 'lines_geom', logFn=None)  # don't log because file is large!
             tc.fetchAndDrop()
             self.db.execute('ALTER TABLE %s DROP COLUMN lines_tmp;' % self.table)
         else:
             tc = mm.traceCleaner(self.table,'trip_id','lines_original', 'lines_geom', logFn=None)
             tc.fetchAndDrop()
-        
+
     def createLotPolygons(self):
-        """Create temporary feature for off-street parking lots and service roads, 
+        """Create temporary feature for off-street parking lots and service roads,
         so that we can exclude them from the end of the trip"""
         self.writeLog('Creating lot polygons')
         if 'lotpolygons' in self.db.list_tables():
@@ -285,7 +303,7 @@ class traceTable():
             else:
                 self.writeLog('lotpolygons table already exists. Skipping')
                 return
-        
+
         if self.offstreetName in self.db.list_tables():
             offst_sql = 'SELECT ST_Union(ST_Buffer(geom,10)) As uniongeom FROM {} UNION'.format(self.offstreetName)
         else:
@@ -295,7 +313,7 @@ class traceTable():
 							WHERE ST_Within(geom_way, (SELECT ST_SetSRID(ST_Extent(lines_geom), %(srs)s) as table_extent FROM sampletraces))''' % {'sts':self.streets, 'srs':self.srs}
 
 
-        cmd = '''CREATE TABLE lotpolygons AS 
+        cmd = '''CREATE TABLE lotpolygons AS
                  (SELECT ST_Difference(lotgeom_big, streetbuffer) AS lotgeom FROM
                     (SELECT ST_Union(uniongeom) AS lotgeom_big FROM
                         (%(offst_sql)s
@@ -304,24 +322,24 @@ class traceTable():
                     ''' % {'offst_sql':offst_sql, 'sts':streetsClip}
         self.db.execute(cmd)
         self.db.create_indices('lotpolygons', geom='lotgeom')
-    
+
     def truncateAllLines(self):
         """Wrapper for truncateLine()
         It is too slow to truncate all lines at once, so we loop over each trace
         It populates a pandas dataframe with the metrics for each trace
         and then uploads the whole dataframe at once
         For some reason (why?) this is more efficient that doing it within postgres
-        """ 
+        """
 
         self.writeLog('Truncating all lines to buffer')
         self.writeLog('...getting geometries')
-        colNames  = ['npings','id_first', 'id_firstx2', 'id_walk', 'id_park', 'maxspeed', 'speed', 'donutspeed', 'walkspeed', 
-                    'pingtime_meanall', 'pingtime_maxall', 'pingtime_meanbuf', 'pingtime_maxbuf', 'npingsbuf', 'npingsdonut', 'npingswalk', 'pingtime_meanwalk', 
+        colNames  = ['npings','id_first', 'id_firstx2', 'id_walk', 'id_park', 'maxspeed', 'speed', 'donutspeed', 'walkspeed',
+                    'pingtime_meanall', 'pingtime_maxall', 'pingtime_meanbuf', 'pingtime_maxbuf', 'npingsbuf', 'npingsdonut', 'npingswalk', 'pingtime_meanwalk',
                     'pt_maxwalk', 'npingspark']
         vectNames = ['lbuff_geom','lineswalk_geom','lineslot_geom','linesall_geom','startpt_geom', 'enterlot_geom','park_geom']
         currentCols = self.db.list_columns_in_table(self.table)
         if any([cc in currentCols for cc in colNames+vectNames]):
-            if self.forceUpdate: 
+            if self.forceUpdate:
                 dropTxt = ', '.join(['DROP COLUMN IF EXISTS '+cc for cc in colNames+vectNames])
                 self.db.execute('ALTER TABLE %s %s;' % (self.table, dropTxt))
             else:
@@ -335,7 +353,7 @@ class traceTable():
             df = pd.DataFrame([self.truncateLine(id) for id in ids], columns=['trip_id']+colNames).set_index('trip_id')
         else:
             dbtmp = self.db  # can't pass a pyscopg2 object to multiprocessing :(
-            self.db = None 
+            self.db = None
             df = pd.DataFrame(apply_multiprocessing(self.truncateLine, ids, self.nCores)).T
             df.columns=['trip_id']+colNames
             for col in df.columns:
@@ -345,14 +363,14 @@ class traceTable():
                 except:
                     print('did not convert column  {}'.format(col))
             df.set_index('trip_id', inplace=True)
-            self.db = dbtmp # restore the connection 
+            self.db = dbtmp # restore the connection
         self.writeLog('...writing to database')
         self.db.update_table_from_array(df,self.table,joinOnIndices=True)
 
         # Now use the ping id information to extract the relevant portion of the linestring
-        self.db.execute('DROP TABLE IF EXISTS %s_tmpmerge;' % self.table)  
+        self.db.execute('DROP TABLE IF EXISTS %s_tmpmerge;' % self.table)
         self.writeLog('...writing temporary table')
-        cmd = '''CREATE TABLE %(table)s_tmpmerge AS 
+        cmd = '''CREATE TABLE %(table)s_tmpmerge AS
                  WITH allpts AS (SELECT trip_id, id_first, id_park, id_walk, ST_DumpPoints(lines_geom) AS dp FROM %(table)s)
                  SELECT t1.trip_id, lbuff_geom, lineswalk_geom, lineslot_geom, linesall_geom,
                         ST_StartPoint(lbuff_geom)  AS startpt_geom, ST_EndPoint(lbuff_geom) AS enterlot_geom,
@@ -371,27 +389,27 @@ class traceTable():
                         FROM allpts WHERE (dp).path[1]>=id_first
                         GROUP BY trip_id) As t4
                   WHERE t1.trip_id = t2.trip_id AND t1.trip_id = t3.trip_id AND t1.trip_id = t4.trip_id;
-                ''' % {'table':self.table}  
-        self.db.execute(cmd)  
+                ''' % {'table':self.table}
+        self.db.execute(cmd)
 
         # if lineslot_geom is Null (no park segment), park_geom is the same as enterlot_geom
         cmd = '''UPDATE %s_tmpmerge SET park_geom = enterlot_geom WHERE park_geom IS Null;''' % (self.table)
         self.db.execute(cmd)
-        
+
         self.writeLog('...merging')
         self.db.merge_table_into_table(self.table+'_tmpmerge', self.table, 'trip_id')
-        self.db.execute('DROP TABLE %s_tmpmerge;' % self.table)  
-        
+        self.db.execute('DROP TABLE %s_tmpmerge;' % self.table)
+
         for geom in ['startpt_geom','park_geom','enterlot_geom','lbuff_geom']:
             self.db.create_indices(self.table, geom=geom)
         self.writeLog('...done')
- 
+
     def truncateLine(self, id):
         """Extract the portion of linestring after it enters the 400m buffer
-        We can't just do an intersect, because the travel path might go out of the buffer afterwards 
+        We can't just do an intersect, because the travel path might go out of the buffer afterwards
         Also take the opportunity to calculate lots of related metrics"""
 
-        # Get dataframe into pandas. This is more flexible than SQL. 
+        # Get dataframe into pandas. This is more flexible than SQL.
         try:
             db = mmt.dbConnection(pgLogin=self.pgLogin, verbose=False) # thread safe for parallelization
             cmd = '''SELECT (dp).path[1] AS ptid, ST_M((dp).geom) AS pingtime,
@@ -401,51 +419,51 @@ class traceTable():
                         (ST_Distance((dp).geom, lag((dp).geom, 2) OVER (PARTITION BY trip_id ORDER BY (dp).path[1])))::float AS distdelta2,
                         (ST_M((dp).geom) - lag(ST_M((dp).geom), 1) OVER (PARTITION BY trip_id ORDER BY (dp).path[1])) AS timedelta,
                         (ST_M((dp).geom) - lag(ST_M((dp).geom), 2) OVER (PARTITION BY trip_id ORDER BY (dp).path[1])) AS timedelta2
-                        FROM (SELECT trip_id, end_geom, ST_DumpPoints(lines_geom) AS dp 
+                        FROM (SELECT trip_id, end_geom, ST_DumpPoints(lines_geom) AS dp
                                     FROM %s WHERE trip_id=%s) AS t1, lotpolygons;''' % (self.table, id)
-            pointsDf = db.execfetchDf(cmd) 
+            pointsDf = db.execfetchDf(cmd)
             pointsDf['timestamp'] = pd.to_datetime(pointsDf.pingtime.apply(lambda x: np.nan if pd.isnull(x) else datetime.datetime.fromtimestamp(x)))
-        
+
             # Smooth out distances for high-resolution traces
             pointsDf.loc[(pointsDf.timedelta==1) & (pointsDf.timedelta2==2), 'distdelta'] = pointsDf.distdelta2.astype(float)
-        
+
             # Create lagged values to calculate rolling speed
             # idea is to smooth the speeds so that the speeds are less an artefact of GPS error
             if len(pointsDf)==1:
                 return [id,1]+[np.nan]*18
 
-            pointsDf.set_index('timestamp', inplace=True)       
+            pointsDf.set_index('timestamp', inplace=True)
             if not(pointsDf.index.is_unique):  # some pings have same timestamp, so group by that
                 pointsDf = pointsDf.groupby(level=0).agg({'ptid':max, 'disttoend':max, 'in_lot':min, 'timedelta':sum, 'distdelta':sum})
             pointsDf.loc[pointsDf.timedelta==0, 'timedelta'] = np.nan # first entry can be zero in pathological cases
-                    
+
             rollDist = pointsDf.distdelta.resample('S').mean().rolling(min_periods=1,window=rollSecs).sum().reindex(pointsDf.index)
             rollTime = pointsDf.timedelta.resample('S').mean().rolling(min_periods=1,window=rollSecs).sum().reindex(pointsDf.index)
-              
+
             rollSpeed =  rollDist/1000./rollTime*60*60
             rollSpeed.loc[pointsDf.timedelta.cumsum()<rollSecs] = np.nan  # gets rid of speeds that are too high because only a few secs are included
             pointsDf['rollspeed'] = rollSpeed
             pointsDf['speed'] = pointsDf.distdelta/pointsDf.timedelta/1000.*60*60 # speed at each ping
-        
+
             # Calculate metrics for the trip as a whole
             id_first = pointsDf[pointsDf.disttoend<=int(r)].ptid.min() # id of first point that is within the buffer
             id_first = max(1, id_first-1) # get the point before it, so we capture the whole length within 400m
             id_firstx2 = pointsDf[pointsDf.disttoend<=int(r)*2].ptid.min() # id of first point that is within the donut
-            id_firstx2 = max(1, id_firstx2-1) 
-                
+            id_firstx2 = max(1, id_firstx2-1)
+
             # let's also define id_walk as the portion within the parking lot
             id_walk  = pointsDf[pointsDf.rollspeed>wSpeed].ptid.max() # id of point that marks the transition to walk
             if pd.isnull(id_walk): id_walk = 1   # entire trace is within walking distance
-        
+
             tmpDf = pointsDf.loc[pointsDf.ptid<=id_walk,['in_lot','ptid']].loc[::-1] # note the [::-1] is to reverse the order
             id_park= tmpDf[tmpDf.in_lot.cummin()==True].ptid.min()
-            if pd.isnull(id_park) or id_park>id_walk: id_park = id_walk   
+            if pd.isnull(id_park) or id_park>id_walk: id_park = id_walk
 
             bufMask = (pointsDf.ptid>id_first) & (pointsDf.ptid<=id_walk)   # points within 400m and until the walk segment starts
-            donutMask = (pointsDf.ptid>id_firstx2) & (pointsDf.ptid<=id_first+1)   # points within 800m and until the 400m radius starts. 
+            donutMask = (pointsDf.ptid>id_firstx2) & (pointsDf.ptid<=id_first+1)   # points within 800m and until the 400m radius starts.
             walkMask = pointsDf.ptid>id_walk
             parkMask = (pointsDf.ptid>id_park) & (pointsDf.ptid<=id_walk)
-        
+
             # sampling resolution (pt = pingtime)
             pt_mean = pointsDf.timedelta.mean()
             pt_max  = pointsDf.timedelta.max()
@@ -459,7 +477,7 @@ class traceTable():
             speed      = pointsDf[bufMask].speed.mean()
             donutspeed = pointsDf[donutMask].speed.mean()
             walkspeed  = pointsDf[walkMask].speed.mean() if walkMask.sum()>0 else 'Null'
-            
+
             return [id, npings, id_first, id_firstx2, id_walk, id_park, maxspeed, speed, donutspeed, walkspeed, pt_mean, pt_max, pt_meanbuf, pt_maxbuf, npingsbuf, npingsdonut, npingswalk, pt_meanwalk, pt_maxwalk, npingspark]
         except:
             print('Failed on id {}'.format(id))
@@ -470,7 +488,7 @@ class traceTable():
         cols = [('endtime', 'timestamp with time zone'), ('endhour', 'int'), ('endminute', 'int'),
                 ('weekday', 'boolean')]
         if 'endtime' in self.db.list_columns_in_table(self.table):
-            if self.forceUpdate: 
+            if self.forceUpdate:
                 dropTxt = ', '.join(['DROP COLUMN IF EXISTS '+cc[0] for cc in cols])
                 self.db.execute('ALTER TABLE %s %s;' % (self.table, dropTxt))
             else:
@@ -478,20 +496,20 @@ class traceTable():
                 return
 
         self.db.addColumns(cols, self.table, dropOld=True)
-        
+
         self.db.execute('UPDATE %s SET endtime = to_timestamp(ST_M(ST_EndPoint(lbuff_geom)));' % (self.table))
-        
+
         self.db.execute('UPDATE %s SET endhour = EXTRACT(hour FROM endtime), endminute = EXTRACT(minute FROM endtime)' % (self.table))
         self.db.execute('UPDATE %s SET weekday = False;' % self.table)
         self.db.execute('UPDATE %s SET weekday = True WHERE EXTRACT(dow FROM endtime)>0 AND EXTRACT(dow FROM endtime)<6;' % self.table)
-    
+
         # now reverse that for holidays.
         # only metered holidays are New Year, Thanksgiving and Christmas
-        cmd = '''UPDATE %s SET weekday = False 
-                        WHERE to_char(endtime, 'MM-DD') in ('01-01', '12-25') 
-                              OR to_char(endtime, 'YY-MM-DD') IN 
-                              ('2013-11-28', '2014-11-27', '2015-11-26', '2016-11-24', '2017-11-23', 
-                               '2018-11-22', '2019-11-28', '2020-11-26', '2021-11-25', '2022-11-24', 
+        cmd = '''UPDATE %s SET weekday = False
+                        WHERE to_char(endtime, 'MM-DD') in ('01-01', '12-25')
+                              OR to_char(endtime, 'YY-MM-DD') IN
+                              ('2013-11-28', '2014-11-27', '2015-11-26', '2016-11-24', '2017-11-23',
+                               '2018-11-22', '2019-11-28', '2020-11-26', '2021-11-25', '2022-11-24',
                                '2023-11-23', '2024-11-28', '2025-11-27')''' % self.table
         self.db.execute(cmd)
 
@@ -499,7 +517,7 @@ class traceTable():
         """Parallelized version of self.mapMatch()"""
         if 'matched_line' in self.db.list_columns_in_table(self.table) and not self.forceUpdate:
             self.writeLog('Map matched geometry column already exists. Skipping')
-            return        
+            return
         newCols = ['matched_line', 'lbuff_geom_cleaned', 'edge_ids','match_score']
         for col in newCols:
             self.db.execute('ALTER TABLE {} DROP COLUMN IF EXISTS {};'.format(self.table, col))
@@ -522,13 +540,13 @@ class traceTable():
             print('All mapmatching chunks succeeded!')
         else:
             print('Redoing {} of {} failed chunks in serial'.format(len(subDicts), len(failed_chunks)))
-            for ii in failed_chunks: 
+            for ii in failed_chunks:
                 result = mapMatch_wrapper(subDicts[ii], self.streets, self.table)
                 success = 'succeeded' if result==0 else 'failed'
                 print('Chunk {} {}'.format(ii, success))
 
     def mapMatchinSerial(self):
-        # create a db connection object with a timeout    
+        # create a db connection object with a timeout
         mmtdb = mmt.dbConnection(pgLogin=self.pgLogin, timeout=mapmatch_timeout, verbose=False)
 
         mapMatcher = mm.mapMatcher(self.streets, self.table, 'trip_id', 'lbuff_geom', db=mmtdb, verbose=False, cleanedGeomName='lbuff_geom_cleaned',qualityModelFn='mapmatching_coefficients.txt')
@@ -538,7 +556,7 @@ class traceTable():
             return -1
         nPings = self.getNPings()
         assert isinstance(nPings, OrderedDict)
-        
+
         starttime=time.time()
         for ii,id in enumerate(nPings):
             if nPings[id]>=3:  # need at least 3 points to match a trace
@@ -554,11 +572,11 @@ class traceTable():
                 self.writeLog('Cannot map match trace %s - too few points' % (id))
 
         print('Mapmatching took %d seconds, of which:' % (time.time()-starttime))
-        for k,v in mapMatcher.timing.items(): 
+        for k,v in mapMatcher.timing.items():
             if k!='median_times': print('\t%s: %d seconds' % (k,v))
-    
+
         return 0
-                
+
     def addMapMatchedSupplementaryData(self):
         """Given the map matched results, add new columns that will speed subsequent processing"""
         # add quality columns
@@ -569,39 +587,39 @@ class traceTable():
         cols = [('edge_id_end','int'),('block_ids', 'text[]'),('ids_repeat', 'int')]
 
         if 'edge_id_end' in self.db.list_columns_in_table(self.table):
-            if self.forceUpdate: 
+            if self.forceUpdate:
                 dropTxt = ', '.join(['DROP COLUMN IF EXISTS '+cc[0] for cc in cols])
                 self.db.execute('ALTER TABLE %s %s;' % (self.table, dropTxt))
             else:
                 self.writeLog('Map matched supplementary data already added. Skipping')
                 return
-                
+
         self.db.addColumns(cols, self.table, skipIfExists=True)
-        
+
         # add repeated ids
         self.db.execute('UPDATE %s SET ids_repeat=0 WHERE array_length(edge_ids, 1)>0' % self.table)
         cmd = '''UPDATE %(table)s t SET ids_repeat=t4.ids_repeat FROM (
                     SELECT trip_id, SUM(edgecount) AS ids_repeat FROM (
-                        SELECT trip_id, count(*) AS edgecount FROM 
+                        SELECT trip_id, count(*) AS edgecount FROM
                              (SELECT trip_id, unnest(edge_ids) AS eid FROM %(table)s) t2
                         GROUP BY trip_id, eid) t3
                     WHERE  edgecount>1 GROUP BY trip_id) t4
                  WHERE t.trip_id=t4.trip_id''' % {'table':self.table}
         self.db.execute(cmd)
-        
+
         # add id of last block
         self.db.execute('UPDATE %s SET edge_id_end=edge_ids[array_length(edge_ids, 1)];' % self.table)
-        
+
         return
 
     def calcAllNetworkDistances(self):
         if 'netwkdist' in self.db.list_columns_in_table(self.table):
-            if self.forceUpdate: 
+            if self.forceUpdate:
                 self.db.execute('ALTER TABLE %s DROP COLUMN netwkdist;' % (self.table))
             else:
                 print('Network distances already calculated. Skipping')
                 return
-        
+
         # avoid calculating network distance for trips where map-matching failed
         ids = self.db.execfetch('SELECT trip_id FROM %s WHERE matched_line IS NOT Null;' % (self.table))
         ids = sorted([ii[0] for ii in ids])
@@ -610,7 +628,7 @@ class traceTable():
             df = pd.DataFrame([self.calcNetworkDistance(id) for id in ids], columns=['trip_id','netwkdist']).set_index('trip_id')
         else:  # in parallel
             dbtmp = self.db  # can't pass a pyscopg2 object to multiprocessing :(
-            self.db = None 
+            self.db = None
             result = apply_multiprocessing(self.calcNetworkDistance, ids, self.nCores)
             #df = pd.DataFrame(result.values(), columns=['trip_id','netwkdist']).set_index('trip_id') # not robust to failures
             df = pd.DataFrame(result, index=['trip_id','netwkdist']).T
@@ -620,7 +638,7 @@ class traceTable():
             print(df_failed.head())
             df.set_index('trip_id', inplace=True)
 
-            self.db = dbtmp # restore the connection 
+            self.db = dbtmp # restore the connection
         self.db.update_table_from_array(df,self.table,joinOnIndices=True)
         self.db.execute('DROP TABLE tmp_for_insertion_%s' % self.table)
         # some errors
@@ -632,18 +650,18 @@ class traceTable():
         # This includes fractional edges. We uses the ratio of the cost from pgr and the cost of the edge
         #   to calculate the fraction of the edge length that we should include in the total length
         # This could still be optimized somewhat, e.g. http://gis.facetedlifes.com/questions/16886/how-can-i-optimize-pgrouting-for-speed
-        # Maybe parallelize the pgrouting call, or use a WHERE clause in the pgr function 
+        # Maybe parallelize the pgrouting call, or use a WHERE clause in the pgr function
         #   (e.g. http://gis.stackexchange.com/questions/72208/how-to-filter-the-graph-on-which-i-want-to-find-the-shortest-path)
         #   or https://github.com/pgRouting/pgrouting/issues/291
         # but we'd have to nest this in a function
         # right now, scales fairly linearly at 0.06/sec per trip
 
         db = mmt.dbConnection(pgLogin=self.pgLogin, verbose=False) # thread safe for parallelization
-        cmd = '''SELECT trip_id, (SELECT SUM(pgr.cost/r3.cost*ST_Length(r3.geom_way)) AS length 
-                    FROM pgr_trsp('SELECT id::int4, source::int4, target::int4, cost::float8, reverse_cost::float8 FROM %(sts)s', 
+        cmd = '''SELECT trip_id, (SELECT SUM(pgr.cost/r3.cost*ST_Length(r3.geom_way)) AS length
+                    FROM pgr_trsp('SELECT id::int4, source::int4, target::int4, cost::float8, reverse_cost::float8 FROM %(sts)s',
                             edge_id_start, stfr, edge_id_end, endfr, True, True,
-                            'SELECT to_cost::float8, target_id::int4,source_id::text AS via_path FROM %(region)s_turn_restrictions') as pgr, 
-                             %(sts)s as r3 WHERE id2=r3.id) FROM (SELECT trip_id, edge_ids[1] AS edge_id_start, edge_id_end, 
+                            'SELECT to_cost::float8, target_id::int4,source_id::text AS via_path FROM %(region)s_turn_restrictions') as pgr,
+                             %(sts)s as r3 WHERE id2=r3.id) FROM (SELECT trip_id, edge_ids[1] AS edge_id_start, edge_id_end,
                           ST_LineLocatePoint(r1.geom_way, t.startpt_geom) AS stfr,
                           ST_LineLocatePoint(r2.geom_way, ST_EndPoint(t.lbuff_geom)) AS endfr
                        FROM %(sts)s AS r1, %(sts)s AS r2, %(table)s as t
@@ -661,7 +679,7 @@ class traceTable():
                 ('dist_ratio','real'), ('frc_inbuffer','real'), ('start_end_dist','real'), ('cruise_time','real'),
                 ('cruise','boolean'), ('high_cruise','boolean'),]
         if 'max_dist' in self.db.list_columns_in_table(self.table):
-            if self.forceUpdate: 
+            if self.forceUpdate:
                 dropTxt = ', '.join(['DROP COLUMN IF EXISTS '+cc[0] for cc in cols])
                 self.db.execute('ALTER TABLE %s %s;' % (self.table, dropTxt))
             else:
@@ -670,27 +688,27 @@ class traceTable():
         self.db.addColumns(cols, self.table, dropOld=True)
 
         self.writeLog('\tCalculating distances and ratios')
-        
+
         # max distance from end point
         cmd = '''UPDATE %s t1 SET max_dist = distance FROM
-                (SELECT trip_id, MAX(ST_Distance((dp).geom, end_geom)) AS distance FROM 
+                (SELECT trip_id, MAX(ST_Distance((dp).geom, end_geom)) AS distance FROM
                     (SELECT trip_id, end_geom, ST_DumpPoints(lbuff_geom) AS dp FROM %s) AS pts
                 GROUP BY trip_id) AS t2
             WHERE t1.trip_id=t2.trip_id;''' % (self.table, self.table)
         self.db.execute(cmd)
 
         # Walk segment length, and distances from start of 400m buffer to end, using (i) the GPS trace, (ii) map-matching
-        cmd = '''UPDATE %s SET  walklength = ST_Distance(end_geom, park_geom), 
+        cmd = '''UPDATE %s SET  walklength = ST_Distance(end_geom, park_geom),
                                 walkdist = ST_Length(lineswalk_geom),
                                 parkdist = ST_Length(lineslot_geom);''' % self.table
         self.db.execute(cmd)
-        
+
         # Set distance ratio to be a minimum of one - if they found an 'illegal' shorter route, this is OK
         cmd = '''UPDATE %s SET dist_ratio = GREATEST(matchdist / netwkdist, 1) WHERE netwkdist >0;''' % self.table
         self.db.execute(cmd)
-    
+
         # Calculate the fraction of matched_line400 that lies within the 400m buffer
-        cmd = '''UPDATE %s SET frc_inbuffer = ST_Length(ST_Intersection(matched_line, ST_Buffer(end_geom, %s))) / matchdist WHERE matchdist>0;''' % (self.table, r) 
+        cmd = '''UPDATE %s SET frc_inbuffer = ST_Length(ST_Intersection(matched_line, ST_Buffer(end_geom, %s))) / matchdist WHERE matchdist>0;''' % (self.table, r)
         self.db.execute(cmd)
 
         # Euclidean distance (m) between start and end of the line (entire trace, not just the 400m buffer). Null if we don't have the true start
@@ -699,45 +717,45 @@ class traceTable():
         elif 'start_geom' in self.db.list_columns_in_table(self.table):
             cmd = '''UPDATE %s SET start_end_dist = ST_Distance(start_geom, end_geom);''' % (self.table)
         else: # nn_traces don't have start_geom
-            cmd = '''UPDATE %s SET start_end_dist = ST_Distance(ST_StartPoint(lines_geom), end_geom);''' % (self.table)        
+            cmd = '''UPDATE %s SET start_end_dist = ST_Distance(ST_StartPoint(lines_geom), end_geom);''' % (self.table)
         self.db.execute(cmd)
-    
+
         # Any evidence of cruising?
         cmd = 'UPDATE %s SET cruise = False WHERE dist_ratio is not Null;' % self.table
         self.db.execute(cmd)
-        cmd = '''UPDATE %s SET cruise = True WHERE (matchdist - netwkdist >5 OR ids_repeat>0) 
+        cmd = '''UPDATE %s SET cruise = True WHERE (matchdist - netwkdist >5 OR ids_repeat>0)
                      AND max_dist <= %s AND frc_inbuffer>%s;''' % (self.table, maxDistThres, bufferThresh)
         self.db.execute(cmd)
-    
+
         cmd = 'UPDATE %s SET high_cruise = False WHERE dist_ratio is not Null;' % (self.table)
         self.db.execute(cmd)
         cmd = 'UPDATE %s SET high_cruise = True WHERE matchdist - netwkdist>200 AND cruise = True;' % (self.table)
         self.db.execute(cmd)
         #cmd = 'UPDATE %s SET ids_repeat = 0 WHERE high_cruise=False AND ids_repeat>0;'
-        #self.db.execute(cmd) 
+        #self.db.execute(cmd)
 
-        # Calculate cruising time, as excess travel / speed 
+        # Calculate cruising time, as excess travel / speed
         cmd = '''UPDATE {} SET cruise_time =
                     CASE WHEN high_cruise is True THEN GREATEST((matchdist - netwkdist) / (matchdist / (ST_M(ST_EndPoint(lbuff_geom)) - ST_M(ST_StartPoint(lbuff_geom)))),0)
-                    WHEN high_cruise is False THEN 0 ELSE Null END;'''.format(self.table) 
+                    WHEN high_cruise is False THEN 0 ELSE Null END;'''.format(self.table)
         self.db.execute(cmd)
 
     def addParkingInfo(self):
-        """DISTANCE TO PARKING (meters, off-street) AND CURB, 
+        """DISTANCE TO PARKING (meters, off-street) AND CURB,
         plus other geographic data (end block group)"""
 
-        cols = [('bg', 'varchar'), ('end_clazz', 'int'), 
+        cols = [('bg', 'varchar'), ('end_clazz', 'int'),
                 ('near_lot_dist', 'real'), ('curb_dist','real')]
 
         if 'bg' in self.db.list_columns_in_table(self.table):
-            if self.forceUpdate: 
+            if self.forceUpdate:
                 dropTxt = ', '.join(['DROP COLUMN IF EXISTS '+cc[0] for cc in cols])
                 self.db.execute('ALTER TABLE %s %s;' % (self.table, dropTxt))
             else:
                 self.writeLog('Parking info already added. Skipping')
                 return
         self.db.addColumns(cols, self.table, dropOld=True)
-        
+
         # End block group
         self.writeLog('\tFinding end census block group')
         cmd = '''UPDATE %s t1 SET bg = t2.bg FROM
@@ -755,22 +773,22 @@ class traceTable():
 
         # Distance to closest off-street lot
         self.writeLog('\tFinding closest off-street lot to end point')
-        cmd = '''UPDATE %s t1 SET near_lot_dist = dist 
-                 FROM (SELECT DISTINCT ON (pt.trip_id) pt.trip_id, 
+        cmd = '''UPDATE %s t1 SET near_lot_dist = dist
+                 FROM (SELECT DISTINCT ON (pt.trip_id) pt.trip_id,
                               ST_Distance(l.geom, pt.park_geom) AS dist
                     FROM %s as pt, %s_off_street as l
                     WHERE ST_DWithin(l.geom, pt.park_geom, 100)
                     ORDER BY pt.trip_id, dist) AS t2
-                    WHERE t1.trip_id = t2.trip_id;''' % (self.table, self.table, self.region)  
+                    WHERE t1.trip_id = t2.trip_id;''' % (self.table, self.table, self.region)
         try:
             self.db.execute(cmd)
         except:
             self.writeLog('\tCannot identify closest off-street parking lot. Perhaps the table is missing? Skipping.')
-    
+
         # Last known position - distance from curb ROW (negative if further from street centerline than curb ROW)
         # The ST_ClosestPoint() gets the distance from the centerline to the closest point on the curb to the end point
         self.writeLog('\tCalculating distance from curb')
-        cmd = '''WITH dists AS 
+        cmd = '''WITH dists AS
                     (SELECT DISTINCT ON (pt.trip_id) trip_id,
                         ST_Distance(pt.park_geom, r.geom_way) as pt_centerline_dist,
                         ST_Distance(pt.park_geom, c.geom) as pt_curb_dist,
@@ -779,8 +797,8 @@ class traceTable():
                   WHERE r.id = pt.edge_id_end AND ST_DWithin(c.geom, pt.park_geom, 200)
                    ORDER BY pt.trip_id, pt_curb_dist)
                 UPDATE %s AS t1 SET curb_dist = curbdist FROM (
-                SELECT trip_id, 
-                    CASE WHEN pt_centerline_dist < curb_centerline_dist THEN pt_curb_dist 
+                SELECT trip_id,
+                    CASE WHEN pt_centerline_dist < curb_centerline_dist THEN pt_curb_dist
                     ELSE pt_curb_dist*-1 END AS curbdist
                     FROM dists) AS dd
                 WHERE t1.trip_id=dd.trip_id;''' % (self.table, self.streets, self.region, self.table)
@@ -791,16 +809,16 @@ class traceTable():
 
     def defineUsableTrips(self):
         """Set use_trip to be False where the trip ends on a freeway, or when match_score<qualityCutoff"""
-        
+
         self.db.addColumns([('use_trip','boolean'),('end_clazz','int')], self.table, skipIfExists=True)
         self.db.execute('''UPDATE {} SET end_clazz = clazz FROM {} WHERE id = edge_id_end'''.format(self.table, self.streets))
         self.db.execute('UPDATE %s SET use_trip=False;' % self.table)
-        self.db.execute('''UPDATE %s SET use_trip=True 
-                             WHERE match_score>%s AND end_clazz!=11 AND pingtime_mean<=30 AND pingtime_max<=60;''' % (self.table, qualityCutoff)) 
+        self.db.execute('''UPDATE %s SET use_trip=True
+                             WHERE match_score>%s AND end_clazz!=11 AND pingtime_mean<=30 AND pingtime_max<=60;''' % (self.table, qualityCutoff))
 
-    def runall(self):  
+    def runall(self):
         """This is the sequence of functions that the analysis runs through"""
-        
+
         self.dropErrantPings()
         self.createLotPolygons()
         self.truncateAllLines()
@@ -885,6 +903,6 @@ if __name__ == '__main__':
         raise Exception ("Call %s with the PostgreSQL table name of your GPS traces and the region abbreviation!" % sys.argv[0])
     table = sys.argv[1].lower()
     region = sys.argv[2].lower()
-    
+
     tt = traceTable(table, region)
     tt.runall()
