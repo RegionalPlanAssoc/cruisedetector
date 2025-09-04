@@ -23,9 +23,9 @@ class importTable():
         self.file_dir = file_dir
         self.region=region
 
-        self.nCores = nCores  # if None, no parallelization will be done  
+        self.nCores = nCores  # if None, no parallelization will be done
         global paths
-        print(file_dir)
+        # print("Getting .gz files from: ", file_dir)
         self.logFn = logPath+self.table+'_log.log' if logFn is None else logFn
         if 'pgLogin' not in globals(): # initialize connection
             global pgLogin  # make it available for parallel instances
@@ -36,8 +36,8 @@ class importTable():
         self.forceUpdate = forceUpdate
         self.ids = None
         self.nPings = None
-        self.writeLog('\n____________Importing CSV from %s____________\n' % (self.file_dir))
-    
+        self.writeLog('\n____________Importing CSVs from .gz files in "%s"____________\n' % (self.file_dir))
+
     def writeLog(self,txt):
         assert isinstance(txt, str)
         currentTime = datetime.datetime.now().strftime("%I:%M%p %B %d, %Y")
@@ -54,8 +54,10 @@ class importTable():
 
     def importCSV(self):
         #for importing compressed csvs
-        csv_list = glob.glob("%s/*.gz" % (basePath+'cruising/'+self.file_dir))
-        
+        csv_list_filepath = self.file_dir
+        print(f"Populating 'samplepoints' table with .gz files from: {csv_list_filepath}")
+        csv_list = glob.glob("%s/*.gz" % (self.file_dir))
+        print(f"{len(csv_list)} total .gz files:")
         print(csv_list)
         #the table structure depends on the data source
         #change the headings below to match the headings for your data
@@ -67,9 +69,9 @@ class importTable():
             df.to_csv(buffer, columns=('device_id', 'id_type', 'latitude', 'longitude', 'h_acc', 'timestamp'),
                       index=False, index_label=None, header=False)
             buffer.seek(0)
-    
+
             self.db.copy_from(buffer, self.table)
-        
+
         #create unique id
         self.db.execute('ALTER TABLE %s ADD COLUMN gid BIGSERIAL' % (self.table))
 
@@ -80,8 +82,8 @@ class pointData():
         self.output_table = output_table
         self.region=region
 
-        self.nCores = nCores  # if None, no parallelization will be done 
-        global crs 
+        self.nCores = nCores  # if None, no parallelization will be done
+        global crs
         self.crs = crs[self.region]
         global paths
         self.logFn = logPath+self.table+'_log.log' if logFn is None else logFn
@@ -113,33 +115,33 @@ class pointData():
     def geocodePoints(self):
         self.db.execute('DROP TABLE IF EXISTS raw_points_1')
 
-        self.db.execute('''CREATE TABLE raw_points_1 AS 
+        self.db.execute('''CREATE TABLE raw_points_1 AS
         SELECT *, to_timestamp(timestamp / 1000) AT TIME ZONE 'UTC' AS timestamp2, ST_SetSRID(ST_MakePointM(longitude,latitude,timestamp / 1000),4326) AS geom -- Note it's important to convert timestamp into seconds before converting to geom
         FROM %s
         WHERE h_acc < %d''' % (self.table, h_acc_Var))
         self.db.execute('''ALTER TABLE raw_points_1
                             ALTER COLUMN geom TYPE Geometry(PointM, %s) USING ST_Transform(geom,%s)'''  % (self.crs, self.crs))
 
-    #process geocoded points into traces                            
+    #process geocoded points into traces
     def processPoints(self):
         self.db.execute('DROP TABLE IF EXISTS tmp_withlags')
-        
+
         #calculate intervals and distance between points
-        self.db.execute('''CREATE TABLE tmp_withlags AS 
-        SELECT *, 
-        ABS(EXTRACT(EPOCH FROM t0.epoch_time) - EXTRACT(EPOCH FROM t0.lag_epoch_time)) AS time_diff_second, 
-        ST_Distance(lag_geom, geom) AS distance_diff_degree FROM (SELECT *, lag(t1.geom, 1) OVER (partition by t1.device_id ORDER BY t1.epoch_time) as lag_geom, 
-                                                                  lag(t1.epoch_time, 1) OVER (partition by t1.device_id ORDER BY t1.epoch_time) as lag_epoch_time 
-                                                                  FROM (SELECT gid,s1.device_id,point_count,timestamp,to_timestamp(CAST(timestamp as bigint)/1000) AT TIME ZONE 'UTC' as epoch_time,geom 
-                                                                        FROM raw_points_1 s1 
-                                                                        LEFT JOIN 
-                                                                        (SELECT device_id, COUNT(device_id) AS point_count FROM raw_points_1 GROUP BY device_id) s2 
+        self.db.execute('''CREATE TABLE tmp_withlags AS
+        SELECT *,
+        ABS(EXTRACT(EPOCH FROM t0.epoch_time) - EXTRACT(EPOCH FROM t0.lag_epoch_time)) AS time_diff_second,
+        ST_Distance(lag_geom, geom) AS distance_diff_degree FROM (SELECT *, lag(t1.geom, 1) OVER (partition by t1.device_id ORDER BY t1.epoch_time) as lag_geom,
+                                                                  lag(t1.epoch_time, 1) OVER (partition by t1.device_id ORDER BY t1.epoch_time) as lag_epoch_time
+                                                                  FROM (SELECT gid,s1.device_id,point_count,timestamp,to_timestamp(CAST(timestamp as bigint)/1000) AT TIME ZONE 'UTC' as epoch_time,geom
+                                                                        FROM raw_points_1 s1
+                                                                        LEFT JOIN
+                                                                        (SELECT device_id, COUNT(device_id) AS point_count FROM raw_points_1 GROUP BY device_id) s2
                                                                         ON s1.device_id = s2.device_id) t1 ) t0''')
         self.db.execute('DROP TABLE IF EXISTS tmp_startpoints')
-        #identify starting points for traces            
-        self.db.execute('''CREATE TABLE tmp_startpoints AS 
+        #identify starting points for traces
+        self.db.execute('''CREATE TABLE tmp_startpoints AS
             SELECT gid, True as startpt
-            FROM tmp_withlags  
+            FROM tmp_withlags
             WHERE lag_epoch_time is Null AND point_count > 1
             OR time_diff_second > %d''' % (trip_start_Var))
 
@@ -153,12 +155,12 @@ class pointData():
 
         self.db.execute('DROP TABLE tmp_withlags')
         self.db.execute('DROP TABLE tmp_startpoints')
-        
+
         #calculate speed between pings
-        self.db.execute('DROP TABLE IF EXISTS tmp_pointdrop1')        
+        self.db.execute('DROP TABLE IF EXISTS tmp_pointdrop1')
         self.db.execute('''CREATE TABLE tmp_pointdrop1 AS
-            SELECT *, 
-            CASE WHEN time_diff_second > 0 THEN (distance_diff_degree / 1000) / (time_diff_second / 3600) 
+            SELECT *,
+            CASE WHEN time_diff_second > 0 THEN (distance_diff_degree / 1000) / (time_diff_second / 3600)
             ELSE 0 END AS speed
             FROM tmp_pointall
             WHERE
@@ -191,24 +193,24 @@ class pointData():
             FROM tmp_pointdrop3
             WHERE point_count2 > %d''' % (trip_ping_tot_Var))
         self.db.execute('DROP TABLE tmp_pointdrop3')
-        
+
         #re-calculate time and distance intervals between points, since some have been dropped
         self.db.execute('DROP TABLE IF EXISTS tmp_withlags2')
-        self.db.execute('''CREATE TABLE tmp_withlags2 AS 
-        SELECT *, 
-        	ABS(EXTRACT(EPOCH FROM t0.epoch_time) - EXTRACT(EPOCH FROM t0.lag_epoch_time2)) AS time_diff_second2, 
-        	ST_Distance(lag_geom2, geom) AS distance_diff_degree2 
-				FROM (SELECT *, 
-					  	lag(t1.geom, 1) OVER (partition by t1.device_id ORDER BY t1.epoch_time) as lag_geom2, 
-						lag(t1.epoch_time, 1) OVER (partition by t1.device_id ORDER BY t1.epoch_time) as lag_epoch_time2 
+        self.db.execute('''CREATE TABLE tmp_withlags2 AS
+        SELECT *,
+        	ABS(EXTRACT(EPOCH FROM t0.epoch_time) - EXTRACT(EPOCH FROM t0.lag_epoch_time2)) AS time_diff_second2,
+        	ST_Distance(lag_geom2, geom) AS distance_diff_degree2
+				FROM (SELECT *,
+					  	lag(t1.geom, 1) OVER (partition by t1.device_id ORDER BY t1.epoch_time) as lag_geom2,
+						lag(t1.epoch_time, 1) OVER (partition by t1.device_id ORDER BY t1.epoch_time) as lag_epoch_time2
 						FROM (SELECT gid,s1.device_id,s1.point_count,point_count3,timestamp,epoch_time,geom,lag_geom,lag_epoch_time,time_diff_second,
 							  		distance_diff_degree,startpt,speed,tmp_trip_id,point_count2,trip_id
-								FROM quadrant_point4trace s1 
-								LEFT JOIN 
-									(SELECT device_id, 
-											COUNT(device_id) AS point_count3 
-											FROM quadrant_point4trace 
-									 		GROUP BY device_id) s2 
+								FROM quadrant_point4trace s1
+								LEFT JOIN
+									(SELECT device_id,
+											COUNT(device_id) AS point_count3
+											FROM quadrant_point4trace
+									 		GROUP BY device_id) s2
 								ON s1.device_id = s2.device_id) t1 ) t0''')
 
     #generate traces from processed and filtered points
@@ -217,8 +219,8 @@ class pointData():
         self.db.execute('''CREATE TABLE quadrant_traces_1 AS
         	SELECT t1.device_id, t1.trip_id, t2.avg_pingtime, t2.ping_count, t2.trip_distance, t2.trip_duration,t2.avg_speed, ST_MakeLine(t1.geom ORDER BY t1.timestamp) AS lines_geom
         	FROM tmp_withlags2 t1
-        		LEFT JOIN 
-        			(SELECT trip_id, 
+        		LEFT JOIN
+        			(SELECT trip_id,
         				SUM(time_diff_second)/(Count(time_diff_second)-1) as avg_pingtime,
         				AVG(point_count2) as ping_count,
         				SUM(distance_diff_degree) AS trip_distance,
@@ -233,10 +235,10 @@ class pointData():
 
         self.db.execute('DROP TABLE IF EXISTS quadrant_traces_usable_1')
         self.db.execute('''CREATE TABLE quadrant_traces_usable_1 AS
-            SELECT trip_id, lines_geom, 
-            ST_SetSRID(ST_Force2D(ST_StartPoint(lines_geom)),%s) AS start_geom, 
-            ST_SetSRID(ST_Force2D(ST_EndPoint(lines_geom)),%s) AS end_geom, 
-            avg_pingtime, ping_count, trip_distance, 
+            SELECT trip_id, lines_geom,
+            ST_SetSRID(ST_Force2D(ST_StartPoint(lines_geom)),%s) AS start_geom,
+            ST_SetSRID(ST_Force2D(ST_EndPoint(lines_geom)),%s) AS end_geom,
+            avg_pingtime, ping_count, trip_distance,
             avg_pingtime * ping_count AS trip_duration,
             avg_speed,
             ST_Distance(ST_SetSRID(ST_Force2D(ST_StartPoint(lines_geom)),%s), ST_SetSRID(ST_Force2D(ST_EndPoint(lines_geom)),%s)) AS trip_od_distance
@@ -245,31 +247,35 @@ class pointData():
         #Append traces to trace table where traces meet min requirements
         #self.db.execute('DROP TABLE IF EXISTS %s' % (self.output_table))
         self.db.execute('''CREATE TABLE IF NOT EXISTS %s (
-            trip_id bigint, 
-            lines_geom geometry, 
-            start_geom geometry, 
-            end_geom geometry, 
-            avg_pingtime DOUBLE PRECISION, 
-            ping_count DOUBLE PRECISION, 
-            trip_distance DOUBLE PRECISION, 
+            trip_id bigint,
+            lines_geom geometry,
+            start_geom geometry,
+            end_geom geometry,
+            avg_pingtime DOUBLE PRECISION,
+            ping_count DOUBLE PRECISION,
+            trip_distance DOUBLE PRECISION,
             trip_duration DOUBLE PRECISION,
             avg_speed DOUBLE PRECISION,
             trip_od_distance DOUBLE PRECISION)''' % (self.output_table))
 
-        self.db.execute('''INSERT INTO %s 
-            SELECT *
+        column_order = 'trip_id, lines_geom, start_geom, end_geom, avg_pingtime, ping_count, trip_distance, trip_duration, avg_speed, trip_od_distance'
+        self.db.execute('''INSERT INTO %s (%s)
+            SELECT %s
             FROM quadrant_traces_usable_1
-            WHERE avg_pingtime <= %d AND trip_duration >= %d AND trip_od_distance > 400''' % (self.output_table, trip_ping_avg_Var, duration_Var))
-                    
+            WHERE avg_pingtime <= %d
+                AND trip_duration >= %d
+                AND trip_od_distance > 400
+                AND lines_geom IS NOT NULL
+                AND ST_GeometryType(lines_geom) = 'ST_LineString';''' % (self.output_table, column_order, column_order, trip_ping_avg_Var, duration_Var))
 
-        self.db.execute('DROP TABLE tmp_withlags2')
-        self.db.execute('DROP TABLE raw_points_1')
-        self.db.execute('DROP TABLE quadrant_point4trace')
-        self.db.execute('DROP TABLE quadrant_traces_1')
-        self.db.execute('DROP TABLE quadrant_traces_usable_1')
+        ## Temporary Table Deletion
+        ## Uncomment to save disk space, otherwise leave for debugging.
+        # self.db.execute('DROP TABLE tmp_withlags2')
+        # self.db.execute('DROP TABLE raw_points_1')
+        # self.db.execute('DROP TABLE quadrant_point4trace')
+        # self.db.execute('DROP TABLE quadrant_traces_1')
+        # self.db.execute('DROP TABLE quadrant_traces_usable_1')
 
     def generateUniqueIDs(self):
         self.db.execute('ALTER TABLE %s DROP COLUMN trip_id;' % (self.output_table))
         self.db.execute('ALTER TABLE %s ADD COLUMN trip_id bigserial;' % (self.output_table))
-
-

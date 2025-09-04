@@ -20,7 +20,8 @@ from pathlib import Path
 Defaults that the user should change
 """
 # 1. Basepath and output folder for log
-basePath = 'C:/cruise_base/'#'G:/Shared drives/Projects/3090_Cruising for Parking/Data/testing/'
+# basePath = 'G:/Shared drives/Projects/3090_Cruising for Parking/Data/testing/'
+basePath = 'C:/cruise_base/'
 
 # 2. Which regions to load streets and other data for
 defaults = {}
@@ -38,7 +39,7 @@ logPath = '.'
 sys.path.append(basePath)
 
 # 6. Path for osm2po with no spaces
-osm2poPath = 'C:/cruise_base/' # 'C:/Downloads/'
+osm2poPath = "C:/cruise_base/" #'C:/Downloads/'
 osm2poVersion = '5.5.16' # '5.5.1'
 
 # 7. Location of mapmatching coefficient file (in this git repo). You shouldn't need to change this.
@@ -58,11 +59,10 @@ import pgMapMatch.tools as  mmt
 from pgMapMatch.config import *
 #from cruising_importLocationData import *
 # from cruising_setup import *
+import csv
 
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
-
-import subprocess
 
 # key parameters
 maxDistThres = 1400 # maximum distance that the trace can get from the endpoint, once it enters the 400m buffer
@@ -103,39 +103,93 @@ def loadTables(region=None):
             2. graph.build.excludeWrongWays = true
     """
     os.chdir(osm2poPath)
-
     osmDict = {'sf':'san-francisco_california.osm.pbf', 'mi':'michigan-latest.osm.pbf', 'ca':'california-latest.osm.pbf', 'wa':'washington-latest.osm.pbf'}
+    print("\nConverting .osm.pbf into a routable network ( ..._4pgr.sql & ..._vertex.sql )...")
+    print('%sosm2po-%s/osm2po-core-%s-signed.jar' % (osm2poPath, osm2poVersion, osm2poVersion))
+    print("\tExists?: ", os.path.exists('%sosm2po-%s/osm2po-core-%s-signed.jar' % (osm2poPath, osm2poVersion, osm2poVersion)))
     for region in regions:
-        try: # assert os.system("java -Xmx5g -jar %sosm2po-%s/osm2po-core-%s-signed.jar tileSize=x cmd=c prefix=%s_osm %s" % (osm2poPath, osm2poVersion, osm2poVersion, region, osm2poPath+osmDict[region]))==0
-            cmd = "java -Xmx5g -jar %sosm2po-%s/osm2po-core-%s-signed.jar tileSize=x cmd=c prefix=%s_osm %s" % (osm2poPath, osm2poVersion, osm2poVersion, region, osm2poPath+osmDict[region])
-            subprocess.run([cmd], shell=True, check=True, capture_output=True)
-        except Exception as err:
-            print(f"{err} {err.stderr.decode('utf8')}")
-            raise err
-
+        print(osm2poPath+osmDict[region])
+        print("\tExists?: ", os.path.exists(osm2poPath+osmDict[region]))
+        assert os.system("java -Xmx5g -jar %sosm2po-%s/osm2po-core-%s-signed.jar tileSize=x cmd=c prefix=%s_osm %s" % (osm2poPath, osm2poVersion, osm2poVersion, region, osm2poPath+osmDict[region]))==0
 
     # table of streets
     for region in regions:
         st_table = region+'_streets'
-        print ('Loading streets for %s into table %s' % (region, st_table))
-        try: # assert os.system("""psql -d %s -h %s -U %s -q -f %s%s_osm/%s_osm_2po_4pgr.sql""" % (pgInfo['db'], pgInfo['host'], pgInfo['user'], osm2poPath, region, region))==0
-            cmd = """psql -d %s -h %s -U %s -q -f %s%s_osm/%s_osm_2po_4pgr.sql""" % (pgInfo['db'], pgInfo['host'], pgInfo['user'], osm2poPath, region, region)
-            subprocess.run([cmd], shell=True, check=True, capture_output=True)
-        except Exception as err:
-            print(f"{err} {err.stderr.decode('utf8')}")
-            raise err
-        # table of turn restrictions
-        try: # assert os.system("psql -d %s -h %s -U %s -q -f %s%s_osm/%s_osm_2po_vertex.sql" % (pgInfo['db'], pgInfo['host'], pgInfo['user'], osm2poPath, region, region))==0
-            cmd = "psql -d %s -h %s -U %s -q -f %s%s_osm/%s_osm_2po_vertex.sql" % (pgInfo['db'], pgInfo['host'], pgInfo['user'], osm2poPath, region, region)
-            subprocess.run([cmd], shell=True, check=True, capture_output=True)
-        except Exception as err:
-            print(f"{err} {err.stderr.decode('utf8')}")
-            raise err
+        print ('\nLoading streets for %s into table %s...' % (region, st_table))
+        print("Table of Streets:")
+        test = """psql -d %s -h %s -U %s -q -f %s%s_osm/%s_osm_2po_4pgr.sql""" % (pgInfo['db'], pgInfo['host'], pgInfo['user'], osm2poPath, region, region)
+        print(test)
+        print("\tExists?: ", os.path.exists("%s%s_osm/%s_osm_2po_4pgr.sql" % (osm2poPath, region, region)))
+        assert os.system("""psql -d %s -h %s -U %s -q -f %s%s_osm/%s_osm_2po_4pgr.sql""" % (pgInfo['db'], pgInfo['host'], pgInfo['user'], osm2poPath, region, region))==0
+        print("Table of Turn Restrictions:")
+        test = "psql -d %s -h %s -U %s -q -f %s%s_osm/%s_osm_2po_vertex.sql" % (pgInfo['db'], pgInfo['host'], pgInfo['user'], osm2poPath, region, region)
+        print(test)
+        print("\tExists?: ", os.path.exists("%s%s_osm/%s_osm_2po_vertex.sql" % (osm2poPath, region, region)))
+        assert os.system("psql -d %s -h %s -U %s -q -f %s%s_osm/%s_osm_2po_vertex.sql" % (pgInfo['db'], pgInfo['host'], pgInfo['user'], osm2poPath, region, region))==0
         #assert os.system("rm -r %s%s_osm" % (osm2poPath, region))==0
 
         # rename and project to 3494
         db.fix_permissions_of_new_table('%s_osm_2po_4pgr' % region)
         db.fix_permissions_of_new_table('%s_osm_2po_vertex' % region)
+
+        # Select some data from the table '_osm_2po_4pgr' to confirm we can access it.
+        print("\nSelecting a sample of the %s_osm_2po_4pgr data to confirm we can access it:" % region)
+        try:
+            db.execute("SELECT * FROM wa_osm_2po_4pgr LIMIT 10;")
+            sample_data = db.cursor.fetchall()
+            print("Successfully fetched sample data:")
+            for row in sample_data:
+                print(row)
+        except Exception as e:
+            print(f"Could not fetch data from wa_osm_2po_4pgr. Make sure the table exists and is accessible. Error: {e}")
+
+        # Write the data to a CSV file for debugging
+        output_filename = 'C:/cruisebase/wa_osm_2po_4pgr.csv'
+        try:
+            # Fetch all data from the table
+            db.execute("SELECT * FROM wa_osm_2po_4pgr;")
+            all_data = db.cursor.fetchall()
+            # Get column names from cursor description
+            column_names = [desc[0] for desc in db.cursor.description]
+            # Write data to CSV file
+            print(column_names)
+            with open(output_filename, 'w', newline='', encoding='utf-8') as csvfile:
+                csv_writer = csv.writer(csvfile)
+                csv_writer.writerow(column_names) # Write header row
+                csv_writer.writerows(all_data) # Write data rows
+            print(f"\nData {region}_osm_2po_4pgr successfully written to CSV:\n\t {output_filename}\n")
+        except Exception as e:
+            print(f"\nAn error occurred while fetching or writing {region}_osm_2po_4pgr data to CSV: {e}")
+
+        # Select some data from the table '_osm_2po_4pgr' to confirm we can access it.
+        print("\nSelecting a sample of the %s_osm_2po_vertex data to confirm we can access it:" % region)
+        try:
+            db.execute("SELECT * FROM wa_osm_2po_vertex LIMIT 10;")
+            sample_data = db.cursor.fetchall()
+            print("Successfully fetched sample data:")
+            for row in sample_data:
+                print(row)
+        except Exception as e:
+            print(f"Could not fetch data from wa_osm_2po_vertex. Make sure the table exists and is accessible. Error: {e}")
+
+        # Write the data to a CSV file for debugging
+        output_filename = 'C:/cruisebase/wa_osm_2po_vertex.csv'
+        try:
+            # Fetch all data from the table
+            db.execute("SELECT * FROM wa_osm_2po_vertex;")
+            all_data = db.cursor.fetchall()
+            # Get column names from cursor description
+            column_names = [desc[0] for desc in db.cursor.description]
+            # Write data to CSV file
+            print(column_names)
+            with open(output_filename, 'w', newline='', encoding='utf-8') as csvfile:
+                csv_writer = csv.writer(csvfile)
+                csv_writer.writerow(column_names) # Write header row
+                csv_writer.writerows(all_data) # Write data rows
+            print(f"\nData {region}_osm_2po_vertex successfully written to CSV:\n\t {output_filename}\n")
+        except Exception as e:
+            print(f"\nAn error occurred while fetching or writing {region}_osm_2po_vertex data to CSV: {e}\n")
+
         db.execute("ALTER TABLE %s_osm_2po_4pgr RENAME TO %s;" % (region, st_table))
         db.execute("ALTER TABLE %s ALTER COLUMN geom_way TYPE Geometry(LineString, %s) USING ST_Transform(geom_way, %s);" % (st_table, crs[region], crs[region]))
         db.execute("ALTER TABLE %s_osm_2po_vertex ALTER COLUMN geom_vertex TYPE Geometry(Point, %s) USING ST_Transform(geom_vertex, %s);" % (region, crs[region], crs[region]))
@@ -516,7 +570,7 @@ class traceTable():
     def mapMatchinParallel(self, chunksize=1000):
         """Parallelized version of self.mapMatch()"""
         if 'matched_line' in self.db.list_columns_in_table(self.table) and not self.forceUpdate:
-            self.writeLog('Map matched geometry column already exists. Skipping')
+            self.writeLog('Map matched geom_way column already exists. Skipping')
             return
         newCols = ['matched_line', 'lbuff_geom_cleaned', 'edge_ids','match_score']
         for col in newCols:
@@ -547,12 +601,12 @@ class traceTable():
 
     def mapMatchinSerial(self):
         # create a db connection object with a timeout
-        mmtdb = mmt.dbConnection(pgLogin=self.pgLogin, timeout=mapmatch_timeout, verbose=False)
+        mmtdb = mmt.dbConnection(pgLogin=self.pgLogin, verbose=False) # timeout=mapmatch_timeout, verbose=False)
 
         mapMatcher = mm.mapMatcher(self.streets, self.table, 'trip_id', 'lbuff_geom', db=mmtdb, verbose=False, cleanedGeomName='lbuff_geom_cleaned',qualityModelFn='mapmatching_coefficients.txt')
         mapMatcher.db.verbose=False
         if 'matched_line' in mmtdb.list_columns_in_table(self.table) and not self.forceUpdate:
-            self.writeLog('Map matched geometry column already exists. Skipping')
+            self.writeLog('Map matched geom_way column already exists. Skipping')
             return -1
         nPings = self.getNPings()
         assert isinstance(nPings, OrderedDict)
@@ -868,7 +922,7 @@ def mapMatch_wrapper(pingDict, streetsTn, traceTn, schema='public'):
     pgLogin['schema'] = schema
 
     #print('Entering mapMatch wrapper')
-    db = mmt.dbConnection(pgLogin=pgLogin, timeout=mapmatch_timeout, verbose=False)
+    db = mmt.dbConnection(pgLogin=pgLogin, verbose=False) #, timeout=mapmatch_timeout, verbose=False)
     #print('db connection')
     mapMatcher = mm.mapMatcher(streetsTn, traceTn, 'trip_id', 'lbuff_geom', db=db, verbose=False, cleanedGeomName='lbuff_geom_cleaned',qualityModelFn=coeffFn)
     #print('mapMatcher part')
