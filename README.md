@@ -33,12 +33,12 @@ The file path to Java should be added to your operating system’s PATH environm
 After installation or changing your environmental variable, you will most likely need to restart your machine before the changes propagate.
 
 #### PostgreSQL
-If you use the installer, the other dependencies (pgAdmin4, PostGIS, and pgRouting can be installed with PostgreSQL. 
-On the ‘Select Components’ window, check both pgAdmin 4 and StackBuilder.
-Launch StackBuilder after you finish installing PostgreSQL
-When prompted to ‘Please select the applications you would like to install’ under ‘Spatial Extensions’, check ‘PostGIS … Bundle for PostgreSQL …’ to install both PostGIS and pgRouting.
+If you use the installer, several of the other dependencies (**pgAdmin4**, **PostGIS**, and **pgRouting**) can be installed with PostgreSQL. 
+1. On the *‘Select Components’* window, check both **pgAdmin 4** and **StackBuilder**.
+2. Launch **StackBuilder** after you finish installing PostgreSQL.
+3. When prompted to "Please select the applications you would like to install", under *‘Spatial Extensions’*, check *‘PostGIS … Bundle for PostgreSQL …’* to install both **PostGIS** and **pgRouting**.
 
-You will be prompted to create a password - make sure you remember this password in order to access your databases!
+During the installation process, you will be prompted to create a password - make sure you remember this password in order to access your databases!
 
 After installing Postgres, you should add the filepath to your system’s PATH environmental variable list, as you did with Java. \
 `C:\Program Files\PostgreSQL\17\bin`
@@ -48,7 +48,7 @@ After installing Postgres, you should add the filepath to your system’s PATH e
 The installer will prompt you to create a new database, which by default will be named something like `postgis_35_sample`. If you are creating this for the first time, you may name this database `cruisedb` or a similar identifiable name.
 
 ###### After Installation
-In pgadmin4, you can see you may already have database ‘postgres’ and ‘postgis_35_sample’ based on the version of postgis. Right-click ‘Databases’ and click ‘Create’ > ‘Database…’. To the right of ‘Database’, name this database ‘cruisedb’ or a similar identifiable name.
+In pgadmin4, you can see you may already have database `postgres` and `postgis_35_sample` based on the version of postgis. Right-click *‘Databases’* and click *‘Create’* > *‘Database…’*. To the right of ‘Database’, name this database `cruisedb` or a similar identifiable name.
 
 #### Using pgAdmin4
 ###### Query Tool
