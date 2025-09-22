@@ -52,7 +52,7 @@ In pgadmin4, you can see you may already have database `postgres` and `postgis_3
 
 #### Using pgAdmin4
 ###### Query Tool
-Some lines of pSQL are offered in this readme to troubleshoot errors. These can be run using the ‘Query Tool’ within pgAdmin4. Right-click on the database you are using for cruise detector (i.e. `cruisedb`) and click on the ‘Query Tool’ toward the bottom of the list.
+Some lines of pSQL are provided in this readme to install extensions, find installation files, or troubleshoot errors. These can be run using the ‘Query Tool’ within pgAdmin4. Right-click on the database you are using for cruise detector (i.e. `cruisedb`) and click on the ‘Query Tool’ toward the bottom of the list.
 
 ###### Create Extensions in your database
 To get started, create extensions for Postgis and Pgrouting by running the following line using the Query Tool within your project's PostgreSQL database:
@@ -71,7 +71,6 @@ SHOW hba_file;
 ```
 
 ###### Set Authentication Requirements to Trust
-
 After setting up the postgres database, removing the password requirement allows the tool to run smoother.
 Toward the bottom of this file, you may change all authentication requirements in this `pg_hba.conf` file to `trust`.
 
@@ -92,7 +91,6 @@ host    replication     all             ::1/128                 trust
 ```
 
 ##### Configuring postgresql.conf
-###### Raise the Memory Limit
 By default on Windows, `postgresql.conf` can be found at: \
 `C:/Program Files/PostgreSQL/17/data/postgresql.conf.`
 
@@ -101,6 +99,7 @@ In the Query Tool pgAdmin4, you can use the command to find the configuration
 SHOW config_file;
 ```
 
+###### Raise the Memory Limit
 In this configuration file increase the memory limit by uncommenting and increasing the `shared_buffers`, `temp buffers`, `work_mem`, and `maintenance_work_mem`. 
 
 ```
