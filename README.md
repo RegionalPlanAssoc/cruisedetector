@@ -44,7 +44,7 @@ conda create -n cruise_env -c conda-forge python=3.8 scipy=1.8 numpy pandas gpxp
 
 To install or upgrade individual packages, you may use `conda install` followed by the package name in Anaconda prompt as usual. Alternatively, `pip install` provides more flexibility but can potentially install libraries in an incorrect location.
 
-### PostgreSQL & Geoprocessing Scripts
+### PostgreSQL
 
 | # | Requirement | Minimum Version | What is it? | What does it do? |
 | --- | --------- | --------------- | ----------- | ---------------- |
@@ -53,10 +53,6 @@ To install or upgrade individual packages, you may use `conda install` followed 
 | *2a** | [PostGIS](https://postgis.net/) | [3.2+](https://postgis.net/documentation/getting_started/install_windows/released_versions/) | Spatial database extension that "spatially enables" PostgreSQL databases. | Provides support for geospatial data in PostgreSQL. |
 | *2b** | [pgRouting](https://github.com/pgRouting/pgrouting) | [3.3.0+](https://github.com/pgRouting/pgrouting/wiki/Notes-on-Download,-Installation-and-building-pgRouting) | Plug-in for PostgreSQL. | Extends PostGIS/PostgreSQL geodatabases to provide geospatial routing and network analysis functionality for osm2po to create and pgMapMatch to use routed street networks. |
 | *2c** | [pgAdmin](https://www.pgadmin.org/) | [4](https://www.pgadmin.org/download/pgadmin-4-windows/) | An adminstrative interface for PostgreSQL. | Allows you to reference the outputs and operations from PostgreSQL and to run short commands using the Query Tool. |
-| 3 | [osm2po](http://osm2po.de/) | [5.5+](https://osm2po.de/releases/) | Converter and routing engine. | Parses street networks from OpenStreetMap XML data and makes them into routable topology and graph files. |
-| 4| [Github Desktop](https://desktop.github.com/download/) | *Latest* | Application that manages GitHub Repositories. | Recommended for pulling the latest versions of pgMapMatch and Cruise Detector. |
-| 4a | [pgMapMatch](https://github.com/amillb/pgMapMatch) | *Latest* | Python script. | Matches GPS traces to routes along a street network. |
-| 4b | [cruising](https://github.com/RegionalPlanAssoc/cruisedetector) | *Latest* | Python script. | Detects and analyzes matched GPS traces for cruising-for-parking behavior. |
 
 **PostGIS, pgRouting, and pgAdmin can be installed more cleanly within the PostgreSQL installer. See instructions below.*
 
@@ -96,7 +92,7 @@ The installer will prompt you to create a new database, which by default will be
 ###### After Installation
 In pgadmin4, you can see you may already have database `postgres` and `postgis_35_sample` based on the version of postgis. Right-click *‘Databases’* and click *‘Create’* > *‘Database…’*. To the right of ‘Database’, name this database `cruisedb` or a similar identifiable name.
 
-#### Using pgAdmin4
+##### Using pgAdmin4
 ###### Query Tool
 Some lines of pSQL are provided in this readme to install extensions, find installation files, or troubleshoot errors. These can be run using the ‘Query Tool’ within pgAdmin4. Right-click on the database you are using for cruise detector (i.e. `cruisedb`) and click on the ‘Query Tool’ toward the bottom of the list.
 
@@ -141,7 +137,7 @@ host    replication     all             ::1/128                 trust
 By default on Windows, `postgresql.conf` can be found at: \
 `C:/Program Files/PostgreSQL/17/data/postgresql.conf.`
 
-In the Query Tool pgAdmin4, you can use the command to find the configuration 
+In the Query Tool in pgAdmin4, you can use the command to find the  `postgresql.conf` configuration file.
 ```
 SHOW config_file;
 ```
@@ -174,6 +170,7 @@ maintenance_work_mem = 100MB        # min 64kB [Default: 64MB, Increase: 100MB]
 | `work_mem = 4MB` | `work_mem = 100MB` |
 | `maintenance_work_mem = 64MB` | `maintenance_work_mem = 100MB` |
 
+###### Raise the WAL Segment Size of Checkpoints
 Further down the configuration file, under the heading `# - Checkpoints -`, increase `max_wal_size` and `min_wal_size` if necessary:
 ```
 # - Checkpoints -
@@ -190,29 +187,59 @@ min_wal_size = 80MB                             # [Default: 80MB]
 | `max_wal_size = 1GB` | `max_wal_size = 2GB` |
 | `min_wal_size = 80MB` | `min_wal_size = 80MB` |
 
-If you get bad memory allocation errors such as `GEOSBuffer: std::bad_alloc`, make sure that the memory limits are set at or above the aforementioned limits or higher. 
+If you get bad allocation errors related to memory such as `GEOSBuffer: std::bad_alloc`, first make sure that the memory and checkpoints variables are uncommented and set at or above the aforementioned limits or higher. 
 
-### osm2po 
-Use the [osm2po](http://osm2po.de/) tool to import the OpenStreetMap data into the database. Make a couple of changes to the osm2po config file to accurately reflect [turn restrictions](http://gis.stackexchange.com/questions/41393/does-osm2po-take-into-consideration-turn-restrictions) and one-way streets by un-commenting the following lines:
+### Cruise Detector Base Environment 
+
+Create a base directory for the following components, named something identifiable such as `C:\cruisebase\`. 
+* It is recommended that all filepaths involved should have no spaces in the path (i.e., do NOT use `G:\My Drive`) to guarantee the filepath is not misread by PostgreSQL.
+* For the same reason, you may wish have the base directory as close to your drive letter (i.e. `C:\`) as possible.
+
+You will ultimately download [osm2po](http://osm2po.de/), [cruising](https://github.com/RegionalPlanAssoc/cruisedetector), and [pgMapMatch](https://github.com/amillb/pgMapMatch) repositories as well as the input data to that directory. 
+
+| # | Requirement | Minimum Version | What is it? | What does it do? |
+| --- | --------- | --------------- | ----------- | ---------------- |
+| 1 | [osm2po](http://osm2po.de/) | [5.5+](https://osm2po.de/releases/) | Converter and routing engine. | Parses street networks from OpenStreetMap XML data and makes them into routable topology and graph files. |
+| 2 | [pgMapMatch](https://github.com/amillb/pgMapMatch) | *Latest* | Python script. | Matches GPS traces to routes along a street network. |
+| 3 | [cruising](https://github.com/RegionalPlanAssoc/cruisedetector) | *Latest* | Python script. | Detects and analyzes matched GPS traces for cruising-for-parking behavior. |
+
+You may use [Github Desktop](https://desktop.github.com/download/) to download cruising and pgMapMatch with version control. 
+
+Add the following to the base directory as well:
+1. Download the **street network data** as an `.osm.pbf` file from Geofabrik. The sample location data corresponds to [Washington State osm.pbf](https://download.geofabrik.de/north-america/us/washington.html).
+2. Download the **GPS traces**. You may use [sample location data](https://drive.google.com/file/d/1R1Vu1DW4EewiQ7_Wezf4C62bZDhUzjfp/view?usp=sharing) from Quadrant to the cruising folder. You will need to extract the outermost `.zip` archive using 7-Zip or "Extract all..." in Windows, but you do NOT need to unzip the .gz files within this file.
+3. A folder titled `output` to store logs. 
+
+#### osm2po 
+Download [osm2po](http://osm2po.de/) to the folder. 
+* This will be downloaded as a .zip archive which you must extract, such as by using 7-Zip or "Extract all..." in Windows.
+* You will have to use the basepath that the osm2po folder (i.e. `C:\cruisebase\osm2po-5.5.16`)  is downloaded into within cruising, so as a reminder, it is recommended that the final filepath to the executable file (i.e. `osm2po-core-5.5.16-signed.jar`) should have no spaces.
+
+##### Configuring osm2po.config
+
+You can find `osm2po.config` within the unzipped osm2po folder.
+
+Make a couple of changes to the `osm2po.config` configuration file to accurately reflect [turn restrictions](http://gis.stackexchange.com/questions/41393/does-osm2po-take-into-consideration-turn-restrictions) and one-way streets by un-commenting the following lines:
 
 1. `postp.0.class = de.cm.osm2po.plugins.postp.PgRoutingWriter`
 2. `postp.1.class = de.cm.osm2po.plugins.postp.PgVertexWriter `
 3. `graph.build.excludeWrongWays = true`
 
-To allow service streets to be included in the analysis, uncomment the following line:
+To allow service streets to be included in the routing of the network, also uncomment the following line:
 
-`#wtr.tag.highway.service =        1,  51, 5,   car|bike`
+4. `#wtr.tag.highway.service =        1,  51, 5,   car|bike`
 
-
-### cruising. 
-Configuration parameters are located in the cruising.py file. Open cruising.py and set the parameters for host, file paths, regions, spatial reference systems, and number of CPU cores used for processing. The config file also contains multiple parameters to calibrate trace generation from GPS data and identify cruising.
-pgMapMatch. Open config_template.py and make changes to the pgInfo parameter for your postgres database connection. If you’ve removed the password, make sure requirePassword is set to False. Save the file as config.py.
-
-### pgMapMatch
+#### pgMapMatch
 Clone the cruising and pgMapMatch repositories, and add a folder titled “output” to store logs.
 
-## Environment
-Create a base directory, and download the [cruising](https://github.com/RegionalPlanAssoc/cruisedetector) and [pgMapMatch](https://github.com/amillb/pgMapMatch) repositories to that directory, and download the [sample location data](https://drive.google.com/file/d/1R1Vu1DW4EewiQ7_Wezf4C62bZDhUzjfp/view?usp=sharing) to the cruising folder. Add a folder titled `output` to store logs, and unzip the sampleLocationData folder if using. Download osm2po to a directory with no spaces in its path.
+#### cruising. 
+
+##### cruising.py
+Configuration parameters are located in the cruising.py file. Open cruising.py and set the parameters for host, file paths, regions, spatial reference systems, and number of CPU cores used for processing. The config file also contains multiple parameters to calibrate trace generation from GPS data and identify cruising.
+pgMapMatch. 
+
+##### config_template
+Open config_template.py and make changes to the pgInfo parameter for your postgres database connection. If you’ve removed the password, make sure requirePassword is set to False. Save the file as config.py.
 
 ## Data Requirements and Format
 ### Street Network
