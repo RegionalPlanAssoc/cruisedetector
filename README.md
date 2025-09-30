@@ -24,8 +24,8 @@ It is recommended to create a new Python environment through Anaconda to run Cru
 | # | Requirement |  Minimum Version | Recommended Version | What does it do? | Compatibility Notes |
 | --- | --------- | ---------------- | ------------------- | ---------------- | ------------------- |
 | 1 | numpy | 1.11.3+ | 1.24.4 | Provides tools for numerical and array computing. |
-| 1a | scipy | 0.19.0+ | 1.8.1 | Extends numpy with various algorithms for scientific computing and statistics. | In scipy > 1.8, the `dok_matrix._update()` direct update method is deprecated. As of August 2025, pgMapMatch has been fixed to not rely on this method.
-| 1b | pandas | 0.19.2+ | 2.0.3 | Allows data manipulation, analysis, and cleaning based on dataframes, a tabular data structure based on numpy's numerical arrays. | In pandas > 1.5, iteritems() is removed.  As of September 2025, pgMapMatch has been fixed to replace `iteritems()` with its duplicate `items()`
+| 1a | scipy | 0.19.0+ | 1.8.1 | Extends numpy with various algorithms for scientific computing and statistics. | In scipy > 1.8, the [`dok_matrix._update()` direct update method](https://github.com/scipy/scipy/issues/8338) is deprecated. As of August 2025, pgMapMatch has been [fixed](https://github.com/amillb/pgMapMatch/issues/30) to not rely on this method.
+| 1b | pandas | 0.19.2+ | 2.0.3 | Allows data manipulation, analysis, and cleaning based on dataframes, a tabular data structure based on numpy's numerical arrays. | In pandas > 1.5, [iteritems() is removed](https://github.com/pandas-dev/pandas/pull/45321).  As of September 2025, pgMapMatch has been [fixed](https://github.com/amillb/pgMapMatch/pull/34) to replace `iteritems()` with its duplicate `items()`
 | 2 | gpxpy | 1.1.2+ | 1.6.2 | Allows parsing and manipulating of GPX files, an XML-based format for GPS tracks. |
 | 3 | psycopg2 | 2.5.2+ | 2.9.9 | Adapts PostgreSQL databases to allow Python scripts to connect to and interact with them. |
 | 4 | sqlalchemy | 1.1.6+ | 2.0.32 |  Python SQL toolkit and Object Relational Mapper that facilitates use of SQL in Python. |
@@ -232,7 +232,7 @@ To allow service streets to be included in the routing of the network, also unco
 4. `#wtr.tag.highway.service =        1,  51, 5,   car|bike`
 
 #### pgMapMatch
-Download or clone the pgMapMatch repository.
+Download or clone the [pgMapMatch](https://github.com/amillb/pgMapMatch) repository to the base directory.
 
 To clone the pgMapMatch repository:
 1. After installing GitHub Desktop, got to 'File' > 'Clone repository' or use the shortcut CTRL+Shift+O.
@@ -274,7 +274,7 @@ pgInfo = {'db': 'cruisedb', # [Default: 'your_database_name']
 | `'requirePassword': True` | `'requirePassword': False` |
 
 ###### travelCostReverseCol 
-The default column headings in this file are for the pgMapMatch sample data, which uses different column names. Under the heading `# column identifiers for the PostGIS table of streets` toward the bottom, change the value for `travelCostReverseCol` from `reverse_co` to `reverse_cost`:
+The default column headings in this file are for the pgMapMatch sample data, which uses [different column names](https://github.com/amillb/pgMapMatch/pull/31). Under the heading `# column identifiers for the PostGIS table of streets` toward the bottom, change the value for `travelCostReverseCol` from `reverse_co` to `reverse_cost`:
 ```
 # column identifiers for the PostGIS table of streets
 # the default values here are compatible with osm2po
@@ -295,10 +295,9 @@ speedLimitCol = 'kmh'       # speed limit on street, in km per hour
 
 ##### cruising.py
 Configuration parameters are located in the cruising.py file. Open cruising.py and set the parameters for host, file paths, regions, spatial reference systems, and number of CPU cores used for processing. The config file also contains multiple parameters to calibrate trace generation from GPS data and identify cruising.
-pgMapMatch. 
 
 ##### config_template
-Open config_template.py and 
+
 
 ## Data Requirements and Format
 ### Street Network
