@@ -191,7 +191,7 @@ If you get bad allocation errors related to memory such as `GEOSBuffer: std::bad
 
 ### Cruise Detector Base Environment 
 
-Create a base directory for the following components, named something identifiable such as `C:\cruisebase\`. 
+Make a new folder that will serve as a base directory for the following components, named something identifiable such as `C:\cruisebase\`. 
 * It is recommended that all filepaths involved should have no spaces in the path (i.e., do NOT use `G:\My Drive`) to guarantee the filepath is not misread by PostgreSQL.
 * For the same reason, you may wish have the base directory as close to your drive letter (i.e. `C:\`) as possible.
 
@@ -203,21 +203,23 @@ You will ultimately download [osm2po](http://osm2po.de/), [cruising](https://git
 | 2 | [pgMapMatch](https://github.com/amillb/pgMapMatch) | *Latest* | Python script. | Matches GPS traces to routes along a street network. |
 | 3 | [cruising](https://github.com/RegionalPlanAssoc/cruisedetector) | *Latest* | Python script. | Detects and analyzes matched GPS traces for cruising-for-parking behavior. |
 
-You may use [Github Desktop](https://desktop.github.com/download/) to download cruising and pgMapMatch with version control. 
+You may use [Github Desktop](https://desktop.github.com/download/) to download cruising and pgMapMatch with version control. More instructions for each of these respositories below.
 
-Add the following to the base directory as well:
-1. Download the **street network data** as an `.osm.pbf` (Open Street Maps Protocolbuffer Binary Format) file from Geofabrik. The sample location data is located within Seattle and thus corresponds to [Washington State osm.pbf](https://download.geofabrik.de/north-america/us/washington.html) street network.
-2. Download the **GPS traces**. You may use [sample location data](https://drive.google.com/file/d/1R1Vu1DW4EewiQ7_Wezf4C62bZDhUzjfp/view?usp=sharing) from Quadrant to the cruising folder. You will need to extract the outermost `.zip` archive using 7-Zip or "Extract all..." in Windows, but you do NOT need to unzip the .gz files within this file.
-3. A folder titled `output` to store logs. 
+You will add the following data to this base directory (i.e. `C:\cruisebase\`) as well:
+| # | Data | Note |
+| --- | --- | --- |
+| 4 | Street Network | Download the **street network data** as an `.osm.pbf` (Open Street Maps Protocolbuffer Binary Format) file from [geofabrik.de](https://www.geofabrik.de/). The sample location data is located within Seattle and thus corresponds to [Washington State osm.pbf](https://download.geofabrik.de/north-america/us/washington.html) street network. More information is in the next section, 'Data Requirements'.
+| 5 | GPS Traces | Download the **GPS traces** as a `.gz` compressed CSV. You may use [sample location data](https://drive.google.com/file/d/1R1Vu1DW4EewiQ7_Wezf4C62bZDhUzjfp/view?usp=sharing) from Quadrant to the cruising folder. You will need to extract the outermost `.zip` archive using 7-Zip or "Extract all..." in Windows, but you do NOT need to unzip the .gz files within this file. More information is in the next section, 'Data Requirements'.
+| 6 | Output Folder | An empty folder titled `output` to store logs.
 
 #### osm2po 
 Download [osm2po](http://osm2po.de/) to the folder. 
 * This will be downloaded as a .zip archive, which you must extract using 7-Zip, "Extract all..." in Windows, or another decompressor.
-* You will have to use the basepath that the osm2po folder (i.e. `C:\cruisebase\osm2po-5.5.16`)  is downloaded into within cruising, so as a reminder, it is recommended that the final filepath to the executable file (i.e. `osm2po-core-5.5.16-signed.jar`) should have no spaces.
+* You will have to use the path to the osm2po folder (i.e. `C:\cruisebase\osm2po-5.5.16`) to configure `cruising.py`, so as a reminder, it is recommended that the final filepath to access the executable file (i.e. `C:\cruisebase\osm2po-5.5.16\osm2po-core-5.5.16-signed.jar`) should have no spaces.
 
 ##### Configuring osm2po.config
 
-You can find `osm2po.config` within the unzipped osm2po folder.
+You can find `osm2po.config` within the unzipped osm2po folder (i.e. `C:\cruisebase\osm2po-5.5.16`).
 
 Make a couple of changes to the `osm2po.config` configuration file to accurately reflect [turn restrictions](http://gis.stackexchange.com/questions/41393/does-osm2po-take-into-consideration-turn-restrictions) and one-way streets by un-commenting the following lines:
 
@@ -230,16 +232,73 @@ To allow service streets to be included in the routing of the network, also unco
 4. `#wtr.tag.highway.service =        1,  51, 5,   car|bike`
 
 #### pgMapMatch
-Clone the cruising and pgMapMatch repositories, and add a folder titled “output” to store logs.
+Download or clone the pgMapMatch repository.
 
-#### cruising. 
+To clone the pgMapMatch repository:
+1. After installing GitHub Desktop, got to 'File' > 'Clone repository' or use the shortcut CTRL+Shift+O.
+2. Go to the right-most tab named 'URL' to install using the URL.
+3. For the first field, "Repository URL or GitHub username and repository", paste in `https://github.com/amillb/pgMapMatch` or `amillb/pgMapMatch`.
+4. For the second field, "Local path", use the filepath to the base directory followed by `pgMapMatch` (i.e. `C:\cruisebase\pgMapMatch`).
+5. You should have a the `pgMapMatch` folder in the base directory. To update at a later time, in GitHub Desktop, click 'Fetch Origin' near the top right and 'Pull'. 
+
+Alternatively, you may download without GitHub Desktop by going to the pgMapMatch repository in browser, clicking the green 'Code' button, and 'Download ZIP' to the base directory. After unzipping the repository, be sure to rename the folder to `pgMapMatch`.
+
+##### Configuring config.py
+In the pgMapMatch folder (i.e. `C:\cruisebase\pgMapMatch\`):
+1. Copy `config_template.py`.
+2. Rename the copy `config.py`.
+3. Open `config.py` in a text editor of your choice.
+
+###### pgInfo
+Make and save changes to the `pgInfo` dictionary to allow connection to your Postgres database connection. The five values for these keys will vary based your PostgreSQL installation:
+1. **db**. The name you chose for PostGreSQL database you created for Cruise Detector, i.e. `cruisedb`
+2. **schema**. In pgAdmin, under the dropdown for your chosen PostGreSQL database, there should be another dropdown 'Schemas' with three red diamonds as an icon. You output tables will be stored under `Tables` under the schema you specify here. You can use the default schema, `public` here. 
+3. **user**. This is your username for postgres. Unless you changed your username during your Postgres installation, this will be `postgres` by default.
+4. **host**. This is the hostname to connect to your database. By default, for a local installation of PostgreSQL on your own computer like you performed, this will be `localhost`.
+5. **requirePassword**. If you’ve removed the password as suggested during PostgreSQL installation, set `requirePassword` to `False`. 
+```
+# postgres connection information
+pgInfo = {'db': 'cruisedb', # [Default: 'your_database_name']
+          'schema': 'public',    # schema with GPS traces and streets table [Default: 'your_schema_name']
+          'user': 'postgres', # [Default: 'your_postgres_username']
+          'host': 'localhost', # [Default: 'localhost_or_IP_address']
+          'requirePassword': False # Prompt for password? Normally, False for localhost [Default: True]
+          }
+```
+| Default | Example Value |
+| ------- | ------ |
+| `'db': 'your_database_name'` | `'db': 'cruisedb'` |
+| `'schema': 'your_schema_name'` | `'schema': 'public'` |
+| `'user': 'your_postgres_username'` | `'user': 'postgres'` |
+| `'host': 'localhost_or_IP_address'` | `'host': 'localhost'` |
+| `'requirePassword': True` | `'requirePassword': False` |
+
+###### travelCostReverseCol 
+The default column headings in this file are for the pgMapMatch sample data, which uses different column names. Under the heading `# column identifiers for the PostGIS table of streets` toward the bottom, change the value for `travelCostReverseCol` from `reverse_co` to `reverse_cost`:
+```
+# column identifiers for the PostGIS table of streets
+# the default values here are compatible with osm2po
+streetIdCol = 'id'          # unique id for street edge (i.e. segment or block)
+streetGeomCol = 'geom_way'  # geometry column (LineString) for street edge
+startNodeCol = 'source'     # id of node at which the street edge starts
+endNodeCol = 'target'       # id of node at which the street edge ends
+travelCostCol = 'cost'      # generalized cost to go from startNode to endNode. Expressed in hours to traverse the edge (see https://gis.stackexchange.com/questions/198200/how-are-cost-and-reverse-cost-computed-in-pgrouting)
+travelCostReverseCol = 'reverse_cost'  # generalized cost to go from endNode to startNode. Can be same as travelCostCol if you have no one-way streets. [Formerly  'reverse_co']
+streetLengthCol = 'km'      # length of street, in km
+speedLimitCol = 'kmh'       # speed limit on street, in km per hour
+```
+| Default | Rename |
+| ------- | ------ |
+| `travelCostReverseCol = 'reverse_co'` | `travelCostReverseCol = 'reverse_cost'` |
+
+#### cruising
 
 ##### cruising.py
 Configuration parameters are located in the cruising.py file. Open cruising.py and set the parameters for host, file paths, regions, spatial reference systems, and number of CPU cores used for processing. The config file also contains multiple parameters to calibrate trace generation from GPS data and identify cruising.
 pgMapMatch. 
 
 ##### config_template
-Open config_template.py and make changes to the pgInfo parameter for your postgres database connection. If you’ve removed the password, make sure requirePassword is set to False. Save the file as config.py.
+Open config_template.py and 
 
 ## Data Requirements and Format
 ### Street Network
