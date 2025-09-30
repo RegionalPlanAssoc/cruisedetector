@@ -103,7 +103,7 @@ CREATE EXTENSION postgis;
 CREATE EXTENSION pgrouting;
 ```
 
-##### Configuring pga_hba.conf
+##### Configuring `pga_hba.conf`
 By default on Windows, `pga_hba.conf` can be found at:
 `"C:\Program Files\PostgreSQL\17\data\pg_hba.conf"`
 
@@ -133,7 +133,7 @@ host    replication     all             127.0.0.1/32            trust
 host    replication     all             ::1/128                 trust
 ```
 
-##### Configuring postgresql.conf
+##### Configuring `postgresql.conf`
 By default on Windows, `postgresql.conf` can be found at: \
 `C:/Program Files/PostgreSQL/17/data/postgresql.conf.`
 
@@ -217,7 +217,7 @@ Download [osm2po](http://osm2po.de/) to the folder.
 * This will be downloaded as a .zip archive, which you must extract using 7-Zip, "Extract all..." in Windows, or another decompressor.
 * You will have to use the path to the osm2po folder (i.e. `C:\cruisebase\osm2po-5.5.16`) to configure `cruising.py`, so as a reminder, it is recommended that the final filepath to access the executable file (i.e. `C:\cruisebase\osm2po-5.5.16\osm2po-core-5.5.16-signed.jar`) should have no spaces.
 
-##### Configuring osm2po.config
+##### Configuring `osm2po.config`
 
 You can find `osm2po.config` within the unzipped osm2po folder (i.e. `C:\cruisebase\osm2po-5.5.16`).
 
@@ -243,13 +243,13 @@ To clone the pgMapMatch repository:
 
 Alternatively, you may download to the base directory without using GitHub Desktop by going to the [pgMapMatch](https://github.com/amillb/pgMapMatch) repository in browser, clicking the green 'Code' button, and 'Download ZIP' to the base directory. After unzipping the repository, be sure to rename the folder to `pgMapMatch` from `pgMapMatch-main` or any other name.
 
-##### Configuring config.py
+##### Configuring `config.py`
 In the pgMapMatch folder (i.e. `C:\cruisebase\pgMapMatch\`):
 1. Copy `config_template.py`.
 2. Rename the copy `config.py`.
 3. Open `config.py` in a text editor of your choice.
 
-###### pgInfo
+###### Changes to `pgInfo`
 Make and save changes to the `pgInfo` dictionary to allow connection to your Postgres database connection. The five values for these keys will vary based your PostgreSQL installation:
 1. **db**. The name you chose for PostGreSQL database you created for Cruise Detector, i.e. `cruisedb`
 2. **schema**. In pgAdmin, under the dropdown for your chosen PostGreSQL database, there should be another dropdown 'Schemas' with three red diamonds as an icon. You output tables will be stored under `Tables` under the schema you specify here. You can use the default schema, `public` here. 
@@ -273,7 +273,7 @@ pgInfo = {'db': 'cruisedb', # [Default: 'your_database_name']
 | `'host': 'localhost_or_IP_address'` | `'host': 'localhost'` |
 | `'requirePassword': True` | `'requirePassword': False` |
 
-###### travelCostReverseCol 
+###### Changes to `travelCostReverseCol`
 The default column headings in this file are for the pgMapMatch sample data, which uses [different column names](https://github.com/amillb/pgMapMatch/pull/31). Under the heading `# column identifiers for the PostGIS table of streets` toward the bottom, change the value for `travelCostReverseCol` from `reverse_co` to `reverse_cost`:
 ```
 # column identifiers for the PostGIS table of streets
@@ -303,12 +303,58 @@ To clone the pgMapMatch repository:
 
 Alternatively, you may download to the base directory without using GitHub Desktop by going to the cruisedetector repository in browser, clicking the green 'Code' button, and 'Download ZIP' to the base directory. After unzipping the repository, be sure to rename the folder to `cruisedetector` from `cruisedetector-main` or any other name.
 
-##### cruising_config.py
+##### Configuring `cruising_config.py`
 Configuration parameters for `cruising.py` are located in the `cruising_config.py` file, including the host, file paths, regions, spatial reference systems, and number of CPU cores used for processing. 
+```
+"""
+Defaults that the user should change
+"""
+# 1. Basepath and output folder for log
+# basePath = 'G:/Shared drives/Projects/3090_Cruising for Parking/Data/testing/'
+basePath = 'C:/cruise_base/'
+
+# 2. Which regions to load streets and other data for
+defaults = {}
+defaults['regions'] = ['sf','mi','wa','il']
+
+# 3. Dictionary of coordinate reference systems for each region
+# the crs (SRID) should be recognized by PostGIS
+# if your region is missing, add it to the dictionary
+crs = {'ca':'3493','sf':'3493','mi':'2809','wa':'2855'}
+
+# 4. Path for log file. Default is in your current directory
+logPath = '.'
+
+# 5. You may need to add a directory to your sys.path
+sys.path.append(basePath)
+
+# 6. Path for osm2po with no spaces
+osm2poPath = "C:/cruise_base/" #'C:/Downloads/'
+osm2poVersion = '5.5.16' # '5.5.1'
+
+# 7. Location of mapmatching coefficient file (in this git repo). You shouldn't need to change this.
+# https://stackoverflow.com/questions/3718657/how-do-you-properly-determine-the-current-script-directory
+repoPath = Path(globals().get("__file__", "./_")).absolute().parent
+coeffFn = str(repoPath) + '/mapmatching_coefficients.txt'
+
+# 8. Specify number of processing cores to be used
+cores = 4
+```
 **- WIP -**
 
-##### cruising_importLocationData_congif.py
+##### Configuring `cruising_importLocationData_config.py`
 Configuration parameters for `cruising_importLocationData.py` are located in the `cruising_importLocationData_config.py`, and allow you to calibrate trace generation from GPS data and cruising identification.
+```
+#Set variables
+
+h_acc_Var = 65 #max horizontal accuracy threshold
+ping_tot_Var = 10 #min number of pings per device
+trip_ping_tot_Var = 10 #min number of pings per trip
+trip_ping_avg_Var = 90 #max average interval of pings in a trip, in seconds
+speed_Var = 130 #max plausible speed between pings, in km/hr
+trip_start_Var = 600 #pause in pings to start a new trip
+duration_Var = 300 #min duration for a trip from start to end, in seconds
+```
 **- WIP -**
 
 ## Data Requirements and Format
