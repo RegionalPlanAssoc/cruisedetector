@@ -5,13 +5,22 @@ This manual describes how to use the Cruise Detector, a GPS cruising identificat
 This tool uses GPS data to estimate the proportion of trips that are cruising for parking.
 
 ## Hardware Requirements
-Cruise Detector involves processes that are memory-intensive. At least 32GB RAM is recommended. Processes will take much longer with only 16GB RAM. 
+
+### Memory
+
+Cruise Detector involves processes that are memory-intensive. At least 32GB of RAM is recommended. Processes will take much longer with only 16GB of RAM. The sample location data around 18 hours to run one a machine with 32GB of RAM and over 80 hours to run on a machine with 16GB of RAM.
+
+### Disk Space
+
+PostgreSQL uses substantial disk space to complete operations. Have at least 25GB of free storage space on the drive PostgreSQL is installed on before running the sample location data or similarly sized files. 
 
 ## Software Requirements
-A combination of Python and PostgreSQL. In Cruise Detector, Python is used only to pass commands to PostgreSQL, which handles the bulk of the geoprocessing.
+A combination of Python and PostgreSQL is used in Cruise Detector. Python is used primarily to pass commands to PostgreSQL, which handles the bulk of the actual geoprocessing.
 
-### Python
-It is recommended to create a new Python environment through Anaconda to run Cruise Detector. Cruise Detector uses various python libraries and may not be compatible with later versions. If there are any issues with functions, revert to the "Recommended Version." Ultimately, the Python environment must have the following packages installed:
+You may need administrator privileges to install and run Cruise Detector and many of the software components below. When opening any of software below such as Anaconda Prompt or pgAdmin, be sure to right-click and "Run as administrator" if you do not have these permissions enabled by default on your machine.
+
+### Python Libraries
+It is recommended to create a new Python environment through Anaconda to run Cruise Detector using the line below this tables. Cruise Detector make use of various Python libraries and may lost compatible with future versions. If there are any issues with deprecated functions or missing arguments, revert to the "Recommended Version." Ultimately, the Python environment must have the following packages installed:
 | # | Requirement |  Minimum Version | Recommended Version | What does it do? | Compatibility Notes |
 | --- | --------- | ---------------- | ------------------- | ---------------- | ------------------- |
 | 1 | numpy | 1.11.3+ | 1.24.4 | Provides tools for numerical and array computing. |
@@ -22,7 +31,7 @@ It is recommended to create a new Python environment through Anaconda to run Cru
 | 4 | sqlalchemy | 1.1.6+ | 2.0.32 |  Python SQL toolkit and Object Relational Mapper that facilitates use of SQL in Python. |
 | 5 | docopt | 0.6.1+ | 0.6.2 | Creates the command-line interface for pgMapMatch and cruising. |
 
-You can use Anaconda Navigator to manage your Python environments. In Anaconda Prompt, you can solve for an environment with Cruise Detector’s required dependencies:
+You can use [Anaconda Navigator](https://www.anaconda.com/products/navigator) to manage your Python environments. By running the following line in Anaconda Prompt, you can solve for an environment with all of Cruise Detector’s required dependencies:
 
 ```
 conda create -n cruise_env -c conda-forge python=3.8 scipy=1.8 numpy pandas gpxpy psycopg2 sqlalchemy docopt
@@ -33,9 +42,9 @@ conda create -n cruise_env -c conda-forge python=3.8 scipy=1.8 numpy pandas gpxp
 * `python=3.8` and `scipy=1.8` specify for Anaconda to solve for a new environment with Python 3.8 and Scipy 1.8.
 * `pandas gpxpy psycopg2 sqlalchemy docopt` installs the other required packages with versions that follow based on the conditions specified.
 
-To install or upgrade individual packages, you may use `conda install` followed by the package name in Anaconda prompt as usual. Alternatively, `pip install` provides more flexibility but potentially
+To install or upgrade individual packages, you may use `conda install` followed by the package name in Anaconda prompt as usual. Alternatively, `pip install` provides more flexibility but can potentially install libraries in an incorrect location.
 
-### PostgreSQL
+### PostgreSQL & Geoprocessing Scripts
 
 | # | Requirement | Minimum Version | What is it? | What does it do? |
 | --- | --------- | --------------- | ----------- | ---------------- |
@@ -45,8 +54,9 @@ To install or upgrade individual packages, you may use `conda install` followed 
 | *2b** | [pgRouting](https://github.com/pgRouting/pgrouting) | [3.3.0+](https://github.com/pgRouting/pgrouting/wiki/Notes-on-Download,-Installation-and-building-pgRouting) | Plug-in for PostgreSQL. | Extends PostGIS/PostgreSQL geodatabases to provide geospatial routing and network analysis functionality for osm2po to create and pgMapMatch to use routed street networks. |
 | *2c** | [pgAdmin](https://www.pgadmin.org/) | [4](https://www.pgadmin.org/download/pgadmin-4-windows/) | An adminstrative interface for PostgreSQL. | Allows you to reference the outputs and operations from PostgreSQL and to run short commands using the Query Tool. |
 | 3 | [osm2po](http://osm2po.de/) | [5.5+](https://osm2po.de/releases/) | Converter and routing engine. | Parses street networks from OpenStreetMap XML data and makes them into routable topology and graph files. |
-| 4 | [pgMapMatch](https://github.com/amillb/pgMapMatch) | *Latest* | Python script. | Matches GPS traces to routes along a street network. |
-| 5 | [cruising](https://github.com/RegionalPlanAssoc/cruisedetector) | *Latest* | Python script. | Detects and analyzes matched GPS traces for cruising-for-parking behavior. |
+| 4| [Github Desktop](https://desktop.github.com/download/) | *Latest* | Application that manages GitHub Repositories. | Recommended for pulling the latest versions of pgMapMatch and Cruise Detector. |
+| 4a | [pgMapMatch](https://github.com/amillb/pgMapMatch) | *Latest* | Python script. | Matches GPS traces to routes along a street network. |
+| 4b | [cruising](https://github.com/RegionalPlanAssoc/cruisedetector) | *Latest* | Python script. | Detects and analyzes matched GPS traces for cruising-for-parking behavior. |
 
 **PostGIS, pgRouting, and pgAdmin can be installed more cleanly within the PostgreSQL installer. See instructions below.*
 
@@ -253,9 +263,11 @@ from cruising_importLocationData import *
 Run `loadTables(region='[yourRegion]')` with your region as specified in `cruising.py`, which will import the osm street network and turn restriction table into the database. The field names for the streets table should match those in the `pgMapMatch/config.py`. Make sure the SRS of the streets table matches the SRS you will be using for the location or trip data, and create indexes and spatial indexes have been created. Depending on the imported network, it may improve performance to clip the street network to a convex hull around the study area.
 
 To run the sample data, you will need to download the [Washington State osm.pbf](https://download.geofabrik.de/north-america/us/washington.html) file to your osm2po path and run `loadTables(region='wa')`. The sample data is comprised of GPS point data, which will be used to generate traces, that can then be analyzed for cruising.
+
 ### Import Census Boundaries
 Use PostGIS to import the census boundary files to your database, and reproject the data to the SRS you are using. Use a spatial join to add the tract or block group ID to the streets table.
-### Import GPS Data
+
+### Import GPS Traces
 The `cruising_importLocationData.py` script is based on a specific data vendor and may require alteration to match the format and data structure of the location data obtained. 
 
 To import the sample data, set the sample data directory and name for the imported location data table `points_table` and output trace table `output_table`. Run the following code to import the table:
