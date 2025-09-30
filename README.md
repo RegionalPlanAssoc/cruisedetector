@@ -201,9 +201,9 @@ You will ultimately download [osm2po](http://osm2po.de/), [cruising](https://git
 | --- | --------- | --------------- | ----------- | ---------------- |
 | 1 | [osm2po](http://osm2po.de/) | [5.5+](https://osm2po.de/releases/) | Converter and routing engine. | Parses street networks from OpenStreetMap XML data and makes them into routable topology and graph files. |
 | 2 | [pgMapMatch](https://github.com/amillb/pgMapMatch) | *Latest* | Python script. | Matches GPS traces to routes along a street network. |
-| 3 | [cruising](https://github.com/RegionalPlanAssoc/cruisedetector) | *Latest* | Python script. | Detects and analyzes matched GPS traces for cruising-for-parking behavior. |
+| 3 | [cruisedetector](https://github.com/RegionalPlanAssoc/cruisedetector) | *Latest* | Python script. | Detects and analyzes matched GPS traces for cruising-for-parking behavior. |
 
-You may use [Github Desktop](https://desktop.github.com/download/) to download cruising and pgMapMatch with version control. More instructions for each of these respositories below.
+You may use [GitHub Desktop](https://desktop.github.com/download/) to download cruising and pgMapMatch with version control. More instructions for each of these respositories below.
 
 You will add the following data to this base directory (i.e. `C:\cruisebase\`) as well:
 | # | Data | Note |
@@ -238,10 +238,10 @@ To clone the pgMapMatch repository:
 1. After installing GitHub Desktop, got to 'File' > 'Clone repository' or use the shortcut CTRL+Shift+O.
 2. Go to the right-most tab named 'URL' to install using the URL.
 3. For the first field, "Repository URL or GitHub username and repository", paste in `https://github.com/amillb/pgMapMatch` or `amillb/pgMapMatch`.
-4. For the second field, "Local path", use the filepath to the base directory followed by `pgMapMatch` (i.e. `C:\cruisebase\pgMapMatch`).
-5. You should have a the `pgMapMatch` folder in the base directory. To update at a later time, in GitHub Desktop, click 'Fetch Origin' near the top right and 'Pull'. 
+4. For the second field, "Local path", use the filepath to the base directory followed by `pgMapMatch`, which GitHub Desktop should add by default (i.e. `C:\cruisebase\pgMapMatch`).
+5. You should have a the `pgMapMatch` folder when you access the base directory using File Explorer. To update at a later time, in GitHub Desktop, click 'Fetch Origin' near the top right and 'Pull'. 
 
-Alternatively, you may download without GitHub Desktop by going to the pgMapMatch repository in browser, clicking the green 'Code' button, and 'Download ZIP' to the base directory. After unzipping the repository, be sure to rename the folder to `pgMapMatch`.
+Alternatively, you may download to the base directory without using GitHub Desktop by going to the [pgMapMatch](https://github.com/amillb/pgMapMatch) repository in browser, clicking the green 'Code' button, and 'Download ZIP' to the base directory. After unzipping the repository, be sure to rename the folder to `pgMapMatch` from `pgMapMatch-main` or any other name.
 
 ##### Configuring config.py
 In the pgMapMatch folder (i.e. `C:\cruisebase\pgMapMatch\`):
@@ -291,13 +291,25 @@ speedLimitCol = 'kmh'       # speed limit on street, in km per hour
 | ------- | ------ |
 | `travelCostReverseCol = 'reverse_co'` | `travelCostReverseCol = 'reverse_cost'` |
 
-#### cruising
+#### cruisedetector
+Download or clone the [cruisedetector](https://github.com/RegionalPlanAssoc/cruisedetector) repository to the base directory.
 
-##### cruising.py
-Configuration parameters are located in the cruising.py file. Open cruising.py and set the parameters for host, file paths, regions, spatial reference systems, and number of CPU cores used for processing. The config file also contains multiple parameters to calibrate trace generation from GPS data and identify cruising.
+To clone the pgMapMatch repository:
+1. After installing GitHub Desktop, got to 'File' > 'Clone repository' or use the shortcut CTRL+Shift+O.
+2. Go to the right-most tab named 'URL' to install using the URL.
+3. For the first field, "Repository URL or GitHub username and repository", paste in `https://github.com/RegionalPlanAssoc/cruisedetector` or `RegionalPlanAssoc/cruisedetector`.
+4. For the second field, "Local path", use the filepath to the base directory followed by `cruisedetector`, which GitHub Desktop should add by default (i.e. `C:\cruisebase\cruisedetector`).
+5. You should have a the `cruisedetector` folder when you access the base directory using File Explorer. To update at a later time, in GitHub Desktop, click 'Fetch Origin' near the top right and 'Pull'. 
 
-##### config_template
+Alternatively, you may download to the base directory without using GitHub Desktop by going to the cruisedetector repository in browser, clicking the green 'Code' button, and 'Download ZIP' to the base directory. After unzipping the repository, be sure to rename the folder to `cruisedetector` from `cruisedetector-main` or any other name.
 
+##### cruising_config.py
+Configuration parameters for `cruising.py` are located in the `cruising_config.py` file, including the host, file paths, regions, spatial reference systems, and number of CPU cores used for processing. 
+**- WIP -**
+
+##### cruising_importLocationData_congif.py
+Configuration parameters for `cruising_importLocationData.py` are located in the `cruising_importLocationData_config.py`, and allow you to calibrate trace generation from GPS data and cruising identification.
+**- WIP -**
 
 ## Data Requirements and Format
 ### Street Network
