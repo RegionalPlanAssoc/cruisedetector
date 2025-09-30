@@ -4,15 +4,25 @@ This manual describes how to use the Cruise Detector, a GPS cruising identificat
 
 This tool uses GPS data to estimate the proportion of trips that are cruising for parking.
 
+## Hardware Requirements
+Cruise Detector involves processes that are memory-intensive. At least 32GB RAM is recommended. Processes will take much longer with only 16GB RAM. 
+
 ## Software Requirements
 A combination of Python and PostgreSQL. In Cruise Detector, Python is used only to pass commands to PostgreSQL, which handles the bulk of the geoprocessing.
 
 ### Python
-It is recommended to create a new Python environment through Anaconda to run Cruise Detector. Ultimately, the Python environment must have the following packages installed:
-            
-You can use Anaconda Navigator to manage your Python environments. 
+It is recommended to create a new Python environment through Anaconda to run Cruise Detector. Cruise Detector uses various python libraries and may not be compatible with later versions. If there are any issues with functions, revert to the "Recommended Version." Ultimately, the Python environment must have the following packages installed:
+| # | Requirement |  Minimum Version | Recommended Version | What does it do? | Compatibility Notes |
+| --- | --------- | ---------------- | ------------------- | ---------------- | ------------------- |
+| 1 | numpy | 1.11.3+ | 1.24.4 | Provides tools for numerical and array computing. |
+| 1a | scipy | 0.19.0+ | 1.8.1 | Extends numpy with various algorithms for scientific computing and statistics. | In scipy > 1.8, the `dok_matrix._update()` direct update method is deprecated. As of August 2025, pgMapMatch has been fixed to not rely on this method.
+| 1b | pandas | 0.19.2+ | 2.0.3 | Allows data manipulation, analysis, and cleaning based on dataframes, a tabular data structure based on numpy's numerical arrays. | In pandas > 1.5, iteritems() is removed.  As of September 2025, pgMapMatch has been fixed to replace `iteritems()` with its duplicate `items()`
+| 2 | gpxpy | 1.1.2+ | 1.6.2 | Allows parsing and manipulating of GPX files, an XML-based format for GPS tracks. |
+| 3 | psycopg2 | 2.5.2+ | 2.9.9 | Adapts PostgreSQL databases to allow Python scripts to connect to and interact with them. |
+| 4 | sqlalchemy | 1.1.6+ | 2.0.32 |  Python SQL toolkit and Object Relational Mapper that facilitates use of SQL in Python. |
+| 5 | docopt | 0.6.1+ | 0.6.2 | Creates the command-line interface for pgMapMatch and cruising. |
 
-In Anaconda Prompt, you can solve for an environment with Cruise Detector’s required dependencies:
+You can use Anaconda Navigator to manage your Python environments. In Anaconda Prompt, you can solve for an environment with Cruise Detector’s required dependencies:
 
 ```
 conda create -n cruise_env -c conda-forge python=3.8 scipy=1.8 numpy pandas gpxpy psycopg2 sqlalchemy docopt
@@ -23,14 +33,40 @@ conda create -n cruise_env -c conda-forge python=3.8 scipy=1.8 numpy pandas gpxp
 * `python=3.8` and `scipy=1.8` specify for Anaconda to solve for a new environment with Python 3.8 and Scipy 1.8.
 * `pandas gpxpy psycopg2 sqlalchemy docopt` installs the other required packages with versions that follow based on the conditions specified.
 
+To install or upgrade individual packages, you may use `conda install` followed by the package name in Anaconda prompt as usual. Alternatively, `pip install` provides more flexibility but potentially
+
 ### PostgreSQL
 
+| # | Requirement | Minimum Version | What is it? | What does it do? |
+| --- | --------- | --------------- | ----------- | ---------------- |
+| 1 | [Java](https://www.java.com/) | [8+](https://www.java.com/en/download/) | Programming language and computing platform. | Necessary to `assert` any commands to PostgreSQL and to use the osm2po tool. |
+| 2 | [PostgreSQL](https://www.postgresql.org/) | [13+](https://www.enterprisedb.com/downloads/postgres-postgresql-downloads) | An object-relational database system that extends SQL language. | Handles most of the geoprocessing with pSQL command passed from Python.  |
+| *2a** | [PostGIS](https://postgis.net/) | [3.2+](https://postgis.net/documentation/getting_started/install_windows/released_versions/) | Spatial database extension that "spatially enables" PostgreSQL databases. | Provides support for geospatial data in PostgreSQL. |
+| *2b** | [pgRouting](https://github.com/pgRouting/pgrouting) | [3.3.0+](https://github.com/pgRouting/pgrouting/wiki/Notes-on-Download,-Installation-and-building-pgRouting) | Plug-in for PostgreSQL. | Extends PostGIS/PostgreSQL geodatabases to provide geospatial routing and network analysis functionality for osm2po to create and pgMapMatch to use routed street networks. |
+| *2c** | [pgAdmin](https://www.pgadmin.org/) | [4](https://www.pgadmin.org/download/pgadmin-4-windows/) | An adminstrative interface for PostgreSQL. | Allows you to reference the outputs and operations from PostgreSQL and to run short commands using the Query Tool. |
+| 3 | [osm2po](http://osm2po.de/) | [5.5+](https://osm2po.de/releases/) | Converter and routing engine. | Parses street networks from OpenStreetMap XML data and makes them into routable topology and graph files. |
+| 4 | [pgMapMatch](https://github.com/amillb/pgMapMatch) | *Latest* | Python script. | Matches GPS traces to routes along a street network. |
+| 5 | [cruising](https://github.com/RegionalPlanAssoc/cruisedetector) | *Latest* | Python script. | Detects and analyzes matched GPS traces for cruising-for-parking behavior. |
+
+**PostGIS, pgRouting, and pgAdmin can be installed more cleanly within the PostgreSQL installer. See instructions below.*
+
 #### Java
-The file path to Java should be added to your operating system’s PATH environmental variable list to be found by its dependents.
+You must have Java installed to pass commands to PostgreSQL with `assert` to perform most of the geoprocessing required for this script and for osm2po convert street network into a routable format. Although you may be able to install PostGreSQL without Java, you will get a blank `AssertionError:` with no other information for any `assert` command in the script if Java is not installed, since there is nowhere for Python to pass the command.
+
+The version of Java to install will depend on your version of PostgreSQL. For [PostgreSQL 13+](https://www.postgresql.org/), you will most likely need [Java 8+](https://www.java.com/en/download/) or higher.
+
+After installation, the file path to Java should be added to your operating system’s PATH environmental variable list to be found by any of its dependents.
+ 
 1. `C:\Program Files (x86)\Common Files\Oracle\Java\javapath`
 2. `C:\Program Files (x86)\Common Files\Oracle\Java\java8path`
 
-After installation or changing your environmental variable, you will most likely need to restart your machine before the changes propagate.
+To edit your system's environment variable list in Windows:
+1. Go to your start menu, search for "System Environmental Variables" and look for "Edit the system Environment Variables".
+2. In the *System Properties* dialogue that pops up, click the "Environment Variables..." button in the lower right corner.
+3. In the *Environment Variables* that pops up, in the lower portion titled *System Variables*, click on `Path` to highlight the row and then click the "Edit..." button in the lower right corner.
+4. Click the "New" button toward the top-right and add both the filepaths above.
+
+After adding the path to Java to your environmental variables, you will most likely need to restart your machine before the changes will propagate.
 
 #### PostgreSQL
 If you use the installer, several of the other dependencies (**pgAdmin4**, **PostGIS**, and **pgRouting**) can be installed with PostgreSQL. 
@@ -69,6 +105,7 @@ In the Query Tool in pgAdmin4, you can use the command to find the `pg_hba.conf`
 ```
 SHOW hba_file;
 ```
+To edit the configuration file in the following steps, you may right-click this file and open this file in any text editor, such as Notepad, Notepad++, Atom, or VSCode.
 
 ###### Set Authentication Requirements to Trust
 After setting up the postgres database, removing the password requirement allows the tool to run smoother.
@@ -98,26 +135,36 @@ In the Query Tool pgAdmin4, you can use the command to find the configuration
 ```
 SHOW config_file;
 ```
+To edit the configuration file in the following steps, you may right-click this file and open this file in any text editor, such as Notepad, Notepad++, Atom, or VSCode.
 
-###### Raise the Memory Limit
-In this configuration file increase the memory limit by uncommenting and increasing the `shared_buffers`, `temp buffers`, `work_mem`, and `maintenance_work_mem`. 
-
+###### Raise the Memory Limits
+In this configuration file, under the heading `# - Memory -`, increase the memory limit by uncommenting and increasing the `shared_buffers`, `temp buffers`, `work_mem`, and `maintenance_work_mem`. 
 ```
 # - Memory -
 
-shared_buffers = 500MB			# min 128kB [Default: 128MB, Adam: 500MB] # (change requires restart)
-#huge_pages = try			# on, off, or try # (change requires restart)
-#huge_page_size = 0			# zero for system default # (change requires restart)
-temp_buffers = 64MB			# min 800kB [Default: 8MB, Adam: 64MB]
-#max_prepared_transactions = 0		# zero disables the feature # (change requires restart)
+shared_buffers = 128MB              # min 128kB [Default: 128MB, Increase: 500MB]
+                                    # (change requires restart)
+#huge_pages = try                   # on, off, or try
+                                    # (change requires restart)
+#huge_page_size = 0                 # zero for system default
+                                    # (change requires restart)
+temp_buffers = 8MB                  # min 800kB [Default: 8MB, Increase: 64MB]
+#max_prepared_transactions = 0      # zero disables the feature
+                                    # (change requires restart)
 # Caution: it is not advisable to set max_prepared_transactions nonzero unless
 # you actively intend to use prepared transactions.
-work_mem = 100MB			# min 64kB [Default: 4MB, Adam: 100MB]
-#hash_mem_multiplier = 2.0		# 1-1000.0 multiplier on hash table work_mem
-maintenance_work_mem = 100MB		# min 64kB [Default: 64MB, Adam: 100MB]
+work_mem = 100MB                    # min 64kB [Default: 4MB, Increase: 100MB]
+#hash_mem_multiplier = 2.0          # 1-1000.0 multiplier on hash table work_mem
+maintenance_work_mem = 100MB        # min 64kB [Default: 64MB, Increase: 100MB]
 ```
+| Default | Increase |
+| ------- | -------- |
+| `shared_buffers = 128MB` | `shared_buffers = 500MB` |
+| `temp_buffers = 8MB` | `temp_buffers = 64MB` |
+| `work_mem = 4MB` | `work_mem = 100MB` |
+| `maintenance_work_mem = 64MB` | `maintenance_work_mem = 100MB` |
 
-Under checkpoints, increase `max_wal_size` and `min_wal_size`.
+Further down the configuration file, under the heading `# - Checkpoints -`, increase `max_wal_size` and `min_wal_size` if necessary:
 ```
 # - Checkpoints -
 
@@ -125,9 +172,13 @@ Under checkpoints, increase `max_wal_size` and `min_wal_size`.
 #checkpoint_completion_target = 0.9	# checkpoint target duration, 0.0 - 1.0
 #checkpoint_flush_after = 0		# measured in pages, 0 disables
 #checkpoint_warning = 30s		# 0 disables
-max_wal_size = 2GB
-min_wal_size = 80MB
+max_wal_size = 2GB                              # [Default: 1GB, Increase: 2GB]
+min_wal_size = 80MB                             # [Default: 80MB] 
 ```
+| Default | Increase |
+| ------- | -------- |
+| `max_wal_size = 1GB` | `max_wal_size = 2GB` |
+| `min_wal_size = 80MB` | `min_wal_size = 80MB` |
 
 If you get bad memory allocation errors such as `GEOSBuffer: std::bad_alloc`, make sure that the memory limits are set at or above the aforementioned limits or higher. 
 
