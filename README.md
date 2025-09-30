@@ -111,11 +111,11 @@ In the Query Tool in pgAdmin4, you can use the command to find the `pg_hba.conf`
 ```
 SHOW hba_file;
 ```
-To edit the configuration file in the following steps, you may right-click this file and open this file in any text editor, such as Notepad, Notepad++, Atom, or VSCode.
+To edit the `postgresql.conf` configuration file in the following steps, you may right-click this file and open this file in any text editor, such as Notepad, Notepad++, Atom, or VSCode.
 
 ###### Set Authentication Requirements to Trust
 After setting up the postgres database, removing the password requirement allows the tool to run smoother.
-Toward the bottom of this file, you may change all authentication requirements in this `pg_hba.conf` file to `trust`.
+Toward the bottom of this `pg_hba.conf` configuration file, you may change all authentication requirements to `trust`.
 
 ```
 # TYPE  DATABASE        USER            ADDRESS                 METHOD
@@ -141,10 +141,10 @@ In the Query Tool in pgAdmin4, you can use the command to find the  `postgresql.
 ```
 SHOW config_file;
 ```
-To edit the configuration file in the following steps, you may right-click this file and open this file in any text editor, such as Notepad, Notepad++, Atom, or VSCode.
+To edit the `postgresql.conf` configuration file in the following steps, you may right-click this file and open this file in any text editor, such as Notepad, Notepad++, Atom, or VSCode.
 
 ###### Raise the Memory Limits
-In this configuration file, under the heading `# - Memory -`, increase the memory limit by uncommenting and increasing the `shared_buffers`, `temp buffers`, `work_mem`, and `maintenance_work_mem`. 
+In this `postgresql.conf` configuration file, under the heading `# - Memory -`, increase the memory limit by uncommenting and increasing the `shared_buffers`, `temp buffers`, `work_mem`, and `maintenance_work_mem`. 
 ```
 # - Memory -
 
@@ -171,7 +171,7 @@ maintenance_work_mem = 100MB        # min 64kB [Default: 64MB, Increase: 100MB]
 | `maintenance_work_mem = 64MB` | `maintenance_work_mem = 100MB` |
 
 ###### Raise the WAL Segment Size of Checkpoints
-Further down the configuration file, under the heading `# - Checkpoints -`, increase `max_wal_size` and `min_wal_size` if necessary:
+Further down the `postgresql.conf` configuration file, under the heading `# - Checkpoints -`, increase `max_wal_size` and `min_wal_size` if necessary:
 ```
 # - Checkpoints -
 
@@ -206,13 +206,13 @@ You will ultimately download [osm2po](http://osm2po.de/), [cruising](https://git
 You may use [Github Desktop](https://desktop.github.com/download/) to download cruising and pgMapMatch with version control. 
 
 Add the following to the base directory as well:
-1. Download the **street network data** as an `.osm.pbf` file from Geofabrik. The sample location data corresponds to [Washington State osm.pbf](https://download.geofabrik.de/north-america/us/washington.html).
+1. Download the **street network data** as an `.osm.pbf` (Open Street Maps Protocolbuffer Binary Format) file from Geofabrik. The sample location data is located within Seattle and thus corresponds to [Washington State osm.pbf](https://download.geofabrik.de/north-america/us/washington.html) street network.
 2. Download the **GPS traces**. You may use [sample location data](https://drive.google.com/file/d/1R1Vu1DW4EewiQ7_Wezf4C62bZDhUzjfp/view?usp=sharing) from Quadrant to the cruising folder. You will need to extract the outermost `.zip` archive using 7-Zip or "Extract all..." in Windows, but you do NOT need to unzip the .gz files within this file.
 3. A folder titled `output` to store logs. 
 
 #### osm2po 
 Download [osm2po](http://osm2po.de/) to the folder. 
-* This will be downloaded as a .zip archive which you must extract, such as by using 7-Zip or "Extract all..." in Windows.
+* This will be downloaded as a .zip archive, which you must extract using 7-Zip, "Extract all..." in Windows, or another decompressor.
 * You will have to use the basepath that the osm2po folder (i.e. `C:\cruisebase\osm2po-5.5.16`)  is downloaded into within cruising, so as a reminder, it is recommended that the final filepath to the executable file (i.e. `osm2po-core-5.5.16-signed.jar`) should have no spaces.
 
 ##### Configuring osm2po.config
