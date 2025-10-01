@@ -304,14 +304,13 @@ To clone the pgMapMatch repository:
 Alternatively, you may download to the base directory without using GitHub Desktop by going to the cruisedetector repository in browser, clicking the green 'Code' button, and 'Download ZIP' to the base directory. After unzipping the repository, be sure to rename the folder to `cruisedetector` from `cruisedetector-main` or any other name.
 
 ##### Configuring `cruising_config.py`
-Configuration parameters for `cruising.py` are located in the `cruising_config.py` file, including the host, file paths, regions, spatial reference systems, and number of CPU cores used for processing. 
+Configuration parameters for `cruising.py` are located in the header of `cruising_config.py`, including the host, file paths, regions, spatial reference systems, and number of CPU cores used for processing. 
 ```
 """
 Defaults that the user should change
 """
 # 1. Basepath and output folder for log
-# basePath = 'G:/Shared drives/Projects/3090_Cruising for Parking/Data/testing/'
-basePath = 'C:/cruise_base/'
+basePath = 'C:/cruisebase/'
 
 # 2. Which regions to load streets and other data for
 defaults = {}
@@ -329,7 +328,7 @@ logPath = '.'
 sys.path.append(basePath)
 
 # 6. Path for osm2po with no spaces
-osm2poPath = "C:/cruise_base/" #'C:/Downloads/'
+osm2poPath = "C:/cruisebase/"
 osm2poVersion = '5.5.16' # '5.5.1'
 
 # 7. Location of mapmatching coefficient file (in this git repo). You shouldn't need to change this.
@@ -342,8 +341,8 @@ cores = 4
 ```
 **- WIP -**
 
-##### Configuring `cruising_importLocationData_config.py`
-Configuration parameters for `cruising_importLocationData.py` are located in the `cruising_importLocationData_config.py`, and allow you to calibrate trace generation from GPS data and cruising identification.
+##### Configuring `cruising_importLocationData.py`
+Configuration parameters for `cruising_importLocationData.py` are located in the header of `cruising_importLocationData.py`, and allow you to calibrate trace generation from GPS data and cruising identification.
 ```
 #Set variables
 
