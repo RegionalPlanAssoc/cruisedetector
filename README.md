@@ -304,7 +304,7 @@ To clone the pgMapMatch repository:
 Alternatively, you may download to the base directory without using GitHub Desktop by going to the cruisedetector repository in browser, clicking the green 'Code' button, and 'Download ZIP' to the base directory. After unzipping the repository, be sure to rename the folder to `cruisedetector` from `cruisedetector-main` or any other name.
 
 ##### Configuring `cruising.py`
-Configuration parameters for `cruising.py` are located in the header of `cruising.py`, including the host, file paths, regions, spatial reference systems, and number of CPU cores used for processing. 
+Configuration parameters for `cruising.py` are located in the header of `cruising.py`, including the host, file paths, regions, spatial reference systems, and number of CPU cores used for processing. The primary changes to make for 1. and 6., which you should update with the filepath for your Cruise Detector base directory.
 ```
 """
 Defaults that the user should change
@@ -341,7 +341,7 @@ cores = 4
 ```
 
 ##### Configuring `cruising_importLocationData.py`
-Configuration parameters for `cruising_importLocationData.py` are located in the header of `cruising_importLocationData.py`, and allow you to calibrate trace generation from GPS data and cruising identification.
+Configuration parameters for `cruising_importLocationData.py` are located in the header of `cruising_importLocationData.py`, and allow you to calibrate trace generation from GPS data and cruising identification. You should not need to make any changes here.
 ```
 #Set variables
 
