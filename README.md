@@ -303,8 +303,8 @@ To clone the pgMapMatch repository:
 
 Alternatively, you may download to the base directory without using GitHub Desktop by going to the cruisedetector repository in browser, clicking the green 'Code' button, and 'Download ZIP' to the base directory. After unzipping the repository, be sure to rename the folder to `cruisedetector` from `cruisedetector-main` or any other name.
 
-##### Configuring `cruising_config.py`
-Configuration parameters for `cruising.py` are located in the header of `cruising_config.py`, including the host, file paths, regions, spatial reference systems, and number of CPU cores used for processing. 
+##### Configuring `cruising.py`
+Configuration parameters for `cruising.py` are located in the header of `cruising.py`, including the host, file paths, regions, spatial reference systems, and number of CPU cores used for processing. 
 ```
 """
 Defaults that the user should change
@@ -339,7 +339,6 @@ coeffFn = str(repoPath) + '/mapmatching_coefficients.txt'
 # 8. Specify number of processing cores to be used
 cores = 4
 ```
-**- WIP -**
 
 ##### Configuring `cruising_importLocationData.py`
 Configuration parameters for `cruising_importLocationData.py` are located in the header of `cruising_importLocationData.py`, and allow you to calibrate trace generation from GPS data and cruising identification.
@@ -354,13 +353,11 @@ speed_Var = 130 #max plausible speed between pings, in km/hr
 trip_start_Var = 600 #pause in pings to start a new trip
 duration_Var = 300 #min duration for a trip from start to end, in seconds
 ```
-**- WIP -**
 
 ## Data Requirements and Format
 ### Street Network
 The street network should be in pbf format. An extract for specific geographic areas can be obtained from [geofabrik.de](https://www.geofabrik.de/). The extract should be saved to the osm2po base path, if that is different from the project base bath.
-### Census Boundaries
-Census tract or block group boundaries are used to aggregate results for analysis purposes after pgMapMatch has been run on the GPS trace data. Census geographies can be obtained in shapefile format from the US Census Bureau’s [TIGERweb](https://tigerweb.geo.census.gov/tigerweb/) database. 
+
 ### GPS Data
 #### Location Data
 Data formats may vary by vendor, but the raw GPS location data must be a table containing a minimum of **device ID, timestamp, latitude and longitude, and horizontal accuracy**. The `cruising_importLocationData.py` script is based on one specific vendor’s data and may require alteration to match the format and data structure of the location data obtained.
@@ -388,16 +385,12 @@ Possible vendors for trip data include:
 As with the location data, the list is not comprehensive, not an endorsement and not a guarantee the vendor will make usable data available.  A collaboration with these firms may be necessary to access their data and information.
 
 ## Load the Data
-To get started, create extensions for Postgis and Pgrouting by running the following query in your project's PostgreSQL database:
-```
-CREATE EXTENSION postgis;
-CREATE EXTENSION pgrouting;
-```
-Next, run the following in your Python IDE:
+Run the following in your Python IDE:
 ```
 import sys
-sys.path.append('[yourBasePath]/cruising') ## change this to your base path
-sys.path.append('[yourBasePath]')
+yourBasePath = 'C:/cruisebase' ## change this to your base path
+sys.path.append(f'{yourBasePath}/cruisedetector') 
+sys.path.append(yourBasePath)
 from cruising import *
 from cruising_importLocationData import *
 ```
