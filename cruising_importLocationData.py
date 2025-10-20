@@ -85,8 +85,6 @@ class pointData():
         self.nCores = nCores  # if None, no parallelization will be done
         global crs
         self.crs = crs[self.region]
-        print(f"Region: {self.region}")
-        print(f"CRS: {self.crs}")
         global paths
         self.logFn = logPath+self.table+'_log.log' if logFn is None else logFn
         if 'pgLogin' not in globals(): # initialize connection
@@ -107,8 +105,8 @@ class pointData():
         assert isinstance(txt, str)
         currentTime = datetime.datetime.now().strftime("%I:%M%p %B %d, %Y")
         with open(self.logFn,'a') as f:
-            f.write('\n'+currentTime+':\t: '+txt)
-            print('\n'+currentTime+':\t: '+txt)
+            f.write(currentTime+':\t: '+txt)
+            print(currentTime+':\t: '+txt)
 
     def resetTraceTable(self):
         self.db.execute('DROP TABLE IF EXISTS %s' % (self.output_table))
@@ -218,8 +216,6 @@ class pointData():
     #generate traces from processed and filtered points
     def generateTraces(self):
         self.db.execute('DROP TABLE IF EXISTS quadrant_traces_1')
-        self.db.execute('DROP TABLE IF EXISTS %s' % (self.output_table)) ## 25.09.09 - same as self.resetTraceTable()
-
         self.db.execute('''CREATE TABLE quadrant_traces_1 AS
         	SELECT t1.device_id, t1.trip_id, t2.avg_pingtime, t2.ping_count, t2.trip_distance, t2.trip_duration,t2.avg_speed, ST_MakeLine(t1.geom ORDER BY t1.timestamp) AS lines_geom
         	FROM tmp_withlags2 t1
@@ -237,66 +233,40 @@ class pointData():
         		GROUP BY t1.device_id, t1.trip_id,t2.avg_pingtime,t2.ping_count,t2.trip_distance,t2.trip_duration,t2.avg_speed
         		ORDER BY trip_id''')
 
-        ## 25.09.09 Sets SRID for lines_geom in addition to start and end points
         self.db.execute('DROP TABLE IF EXISTS quadrant_traces_usable_1')
         self.db.execute('''CREATE TABLE quadrant_traces_usable_1 AS
-            SELECT trip_id,
-            ST_SetSRID(lines_geom, %s) AS lines_geom,
+            SELECT trip_id, lines_geom,
             ST_SetSRID(ST_Force2D(ST_StartPoint(lines_geom)),%s) AS start_geom,
             ST_SetSRID(ST_Force2D(ST_EndPoint(lines_geom)),%s) AS end_geom,
             avg_pingtime, ping_count, trip_distance,
             avg_pingtime * ping_count AS trip_duration,
             avg_speed,
             ST_Distance(ST_SetSRID(ST_Force2D(ST_StartPoint(lines_geom)),%s), ST_SetSRID(ST_Force2D(ST_EndPoint(lines_geom)),%s)) AS trip_od_distance
-            FROM quadrant_traces_1''' % (self.crs, self.crs, self.crs, self.crs, self.crs))
-
-        ## SRID Check
-        srid_check_query = "SELECT ST_SRID(lines_geom) FROM quadrant_traces_usable_1 LIMIT 1;"
-        self.db.execute(srid_check_query)
-        current_srid = self.db.cursor.fetchone()[0]
-        print("SRID of quadrant_traces_usable_1:\t" + str(current_srid))
+            FROM quadrant_traces_1''' % (self.crs, self.crs, self.crs, self.crs))
 
         #Append traces to trace table where traces meet min requirements
         #self.db.execute('DROP TABLE IF EXISTS %s' % (self.output_table))
-        ## 25.09.08 Updated to explicitly declare geometry type and SRIDi n the output table.
         self.db.execute('''CREATE TABLE IF NOT EXISTS %s (
             trip_id bigint,
-            lines_geom Geometry(LineStringM, %s),
-            start_geom Geometry(Point, %s),
-            end_geom Geometry(Point, %s),
+            lines_geom geometry,
+            start_geom geometry,
+            end_geom geometry,
             avg_pingtime DOUBLE PRECISION,
             ping_count DOUBLE PRECISION,
             trip_distance DOUBLE PRECISION,
             trip_duration DOUBLE PRECISION,
             avg_speed DOUBLE PRECISION,
-            trip_od_distance DOUBLE PRECISION)''' % (self.output_table, self.crs, self.crs, self.crs))
+            trip_od_distance DOUBLE PRECISION)''' % (self.output_table))
 
-        # column_order = 'trip_id, lines_geom, start_geom, end_geom, avg_pingtime, ping_count, trip_distance, trip_duration, avg_speed, trip_od_distance'
-        ## 25.09.08 Sets ST_SetSRID explicitly in SELECT and filters in WHERE
-        self.db.execute('''INSERT INTO %s (trip_id, lines_geom, start_geom, end_geom, avg_pingtime, ping_count, trip_distance, trip_duration, avg_speed, trip_od_distance)
-            SELECT trip_id, ST_SetSRID(lines_geom, %s), ST_SetSRID(start_geom, %s), ST_SetSRID(end_geom, %s), avg_pingtime, ping_count, trip_distance, trip_duration, avg_speed, trip_od_distance
+        column_order = 'trip_id, lines_geom, start_geom, end_geom, avg_pingtime, ping_count, trip_distance, trip_duration, avg_speed, trip_od_distance'
+        self.db.execute('''INSERT INTO %s (%s)
+            SELECT %s
             FROM quadrant_traces_usable_1
             WHERE avg_pingtime <= %d
                 AND trip_duration >= %d
                 AND trip_od_distance > 400
                 AND lines_geom IS NOT NULL
-                AND ST_GeometryType(lines_geom) = 'ST_LineString'
-                AND ST_SRID(lines_geom) = %s;''' % (self.output_table, self.crs, self.crs, self.crs, trip_ping_avg_Var, duration_Var, self.crs))
-
-        ## SRID Check
-        srid_check_query = f"SELECT ST_SRID(lines_geom) FROM {self.output_table} LIMIT 1;"
-        self.db.execute(srid_check_query)
-        current_srid = self.db.cursor.fetchone()[0]
-        print("SRID of sampletraces before ALTER TABLE:\t" + str(current_srid))
-
-        # Add this line to set the SRID of the lines_geom column after insertion
-        self.db.execute(f"ALTER TABLE {self.output_table} ALTER COLUMN lines_geom TYPE Geometry(LineStringM, {self.crs}) USING ST_SetSRID(lines_geom, {self.crs});")
-
-        ## SRID Check
-        srid_check_query = f"SELECT ST_SRID(lines_geom) FROM {self.output_table} LIMIT 1;"
-        self.db.execute(srid_check_query)
-        current_srid = self.db.cursor.fetchone()[0]
-        print("SRID of sampletraces after ALTER TABLE:\t" + str(current_srid))
+                AND ST_GeometryType(lines_geom) = 'ST_LineString';''' % (self.output_table, column_order, column_order, trip_ping_avg_Var, duration_Var))
 
         ## Temporary Table Deletion
         ## Uncomment to save disk space, otherwise leave for debugging.
