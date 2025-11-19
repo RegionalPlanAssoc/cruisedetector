@@ -1,8 +1,17 @@
 # cruisedetector
+
 ## Introduction
 This manual describes how to use the Cruise Detector, a GPS cruising identification model developed by the Federal Highway Administration.  Any user with a working knowledge of GIS and simple database skills should be able to implement the system with the aid of information presented here.
 
 This tool uses GPS data to estimate the proportion of trips that are cruising for parking.
+
+#### FHWA Final Report
+Rachel Weinberger, Adam Millard-Ball, Tayo Fabusuyi, Ellis Calvin,
+Jazymyn Blackburn, Michelle Neuner. "Parking Cruising Analysis Methodology: Final Project Report," Report No. FHWA-HOP-23-004. U.S. Department of Transportation, Federal Highway Administration. March 2023. <[https://ops-dr.fhwa.dot.gov/publications/fhwahop23004](https://ops-dr.fhwa.dot.gov/publications/fhwahop23004)>
+
+#### Further Background on Methodology
+Rachel R. Weinberger, Adam Millard-Ball, Robert C. Hampshire. "Parking search caused congestion: Where’s all the fuss?" Transportation Research Part C: Emerging Technologies, Volume 120, 2020, 102781, ISSN 0968-090X, https://doi.org/10.1016/j.trc.2020.102781. (https://www.sciencedirect.com/science/article/pii/S0968090X20306914)
+
 
 ## Hardware Requirements
 
@@ -189,7 +198,7 @@ min_wal_size = 80MB                             # [Default: 80MB]
 
 If you get bad allocation errors related to memory such as `GEOSBuffer: std::bad_alloc`, first make sure that the memory and checkpoints variables are uncommented and set at or above the aforementioned limits or higher. 
 
-### Cruise Detector Base Environment 
+### Cruise Detector Base Directory 
 
 Make a new folder that will serve as a base directory for the following components, named something identifiable such as `C:\cruisebase\`. 
 * It is recommended that all filepaths involved should have no spaces in the path (i.e., do NOT use `G:\My Drive`) to guarantee the filepath is not misread by PostgreSQL.
@@ -356,22 +365,40 @@ duration_Var = 300 #min duration for a trip from start to end, in seconds
 
 ## Data Requirements and Format
 ### Street Network
-The street network should be in pbf format. An extract for specific geographic areas can be obtained from [geofabrik.de](https://www.geofabrik.de/). The extract should be saved to the osm2po base path, if that is different from the project base bath.
+A base street network will be required in order to route a shortest path as the end a trip and compare it to the actual path.
 
-### GPS Data
-#### Location Data
-Data formats may vary by vendor, but the raw GPS location data must be a table containing a minimum of **device ID, timestamp, latitude and longitude, and horizontal accuracy**. The `cruising_importLocationData.py` script is based on one specific vendor’s data and may require alteration to match the format and data structure of the location data obtained.
+The street network should be in [OpenStreetMap's Protocolbuffer Binary Format (.pbf)](https://wiki.openstreetmap.org/wiki/PBF_Format). Extracts for broad geographic areas can be obtained from [geofabrik.de](https://www.geofabrik.de/). The extract should be saved to the the project base directory `C:\cruisebase\`, the same parent directory where you installed osm2po.
 
-The following list is an incomplete list of location data vendors.  Inclusion in the list is not an endorsement.
+The field names for the streets table should match those in the `pgMapMatch/config.py`. Make sure the Spatial Reference System (SRS) of the streets table matches the SRS you will be using for the location or trip data, and any necessary indexes and spatial indexes have been created. Depending on the imported network, it may improve performance to clip the input street network to a convex hull around a specific study area.
+
+For the example workflow in this readme, the [street network in Washington State (washington-latest.osm.pbf)](https://download.geofabrik.de/north-america/us/washington.html) is used.
+
+### Input Trip Data
+#### Location or Ping Data
+Primarily, trips are generated using the timestamped locations of a driver, which is typically derived from the pings of mobile phone locations by cellular signaling data vendors.
+
+Data formats will vary by vendor, but at minimum, the raw ping data must contain the following variables:
+- **device ID**: unique ID for a collection of pings
+- **timestamp**:  date and time of day recorded for the ping.
+- **latitude**: numeric coordinate in degrees of the north-south position of the ping from the equator.
+- **longitude**: numeric coordinate in degrees of the east-west position of the ping from the Prime Meridian.
+- **horizontal accuracy**: estimated error between the reported point and the true geographic location.
+
+The following list is a non-exhaustive list of location data vendors.  Inclusion in the list is not an endorsement.
 
 - Vera set
 - Quadrant
 - Onemata
 - Lifesight
 
-#### Trip Data
-Trip data that has been pre-processed into traces by the vendor can also be used. The imported PostgreSQL table must contain:
-- **trip_id**: unique ID for each trace
+The example workflow in this readme and the `cruising_importLocationData.py` script included in this repository have been written based on data from Quadrant containg pings in Seattle, Wa. Thus, your workflow and version of the `cruising_importLocationData.py` script may require alterations to match the format and structure of the data if an alternative source is used for this script.
+
+
+#### Trip Paths
+Alternatively, trip paths that have already been pre-processed into traces by the vendor may also be used. This data would substitute directly for the trace table (`sampletraces`) table, and the generation of traces from the point table (`samplepoints`) would be skipped.
+
+The imported PostgreSQL table must contain:
+- **trip_id**: Unique ID for each trace
 - **lines_geom**: Linestring M geometry of the trace
 - **start_geom**: Point M geometry of the start point
 - **end_geom**: Point M geometry of the end point
@@ -382,10 +409,36 @@ Possible vendors for trip data include:
 - INRIX
 - TomTom
 
-As with the location data, the list is not comprehensive, not an endorsement and not a guarantee the vendor will make usable data available.  A collaboration with these firms may be necessary to access their data and information.
+As with the location data, the list is not comprehensive, not an endorsement nor a guarantee the vendor will make usable data available. An agreement or a collaboration with these firms may be necessary to access their data and information.
 
-## Load the Data
-Run the following in your Python IDE:
+## Expected Directory Structure
+After installation and obtaining the data, the base directory should be structured as follows if using all the example names provided above.
+
+```
+C:\cruisebase\
+│──  cruisedetector\
+│   │── cruising.py`
+│   │── cruising_importLocationData.py
+│   │── cruising_setup.py
+│   └── [other files]
+│── osm2po-5.5.16\
+│   │── osm2po-core-5.5.16-signed.jar
+│   └── osm2po.config
+│── washington-latest.osm.pbf
+│── pgMapMatch\
+│   │── config.py
+│   └── [other files]
+│── sampleLocationData
+│   │── ... .gz
+│   │── ... .gz
+│   └── ...
+└── output\
+```
+
+## Example Workflow in your Python IDE
+
+### Import Cruise Detector
+Run the following to import the cruise detector scripts into Python, allowing use the function in the subsequent steps.
 ```
 import sys
 yourBasePath = 'C:/cruisebase' ## change this to your base path
@@ -395,39 +448,72 @@ from cruising import *
 from cruising_importLocationData import *
 ```
 ### Import Street Network
-Run `loadTables(region='[yourRegion]')` with your region as specified in `cruising.py`, which will import the osm street network and turn restriction table into the database. The field names for the streets table should match those in the `pgMapMatch/config.py`. Make sure the SRS of the streets table matches the SRS you will be using for the location or trip data, and create indexes and spatial indexes have been created. Depending on the imported network, it may improve performance to clip the street network to a convex hull around the study area.
+You will first need toimport the osm street network and turn restriction table into the database by running: 
 
-To run the sample data, you will need to download the [Washington State osm.pbf](https://download.geofabrik.de/north-america/us/washington.html) file to your osm2po path and run `loadTables(region='wa')`. The sample data is comprised of GPS point data, which will be used to generate traces, that can then be analyzed for cruising.
+```
+loadTables(region='[yourRegion]')
+```
 
-### Import Census Boundaries
-Use PostGIS to import the census boundary files to your database, and reproject the data to the SRS you are using. Use a spatial join to add the tract or block group ID to the streets table.
+#### [yourRegion]
+You will substitute `[yourRegion]` with the abbreviation of the region specified in the list and dictionary in the Defaults of `cruising.py`. For example, if you are using the [Washington State osm.pbf](https://download.geofabrik.de/north-america/us/washington.html), you would run `loadTables(region='wa')`. 
 
-### Import GPS Traces
-The `cruising_importLocationData.py` script is based on a specific data vendor and may require alteration to match the format and data structure of the location data obtained. 
+```
+# 2. Which regions to load streets and other data for
+defaults = {}
+defaults['regions'] = ['sf','mi','wa','il']
 
-To import the sample data, set the sample data directory and name for the imported location data table `points_table` and output trace table `output_table`. Run the following code to import the table:
+# 3. Dictionary of coordinate reference systems for each region
+# the crs (SRID) should be recognized by PostGIS
+# if your region is missing, add it to the dictionary
+crs = {'ca':'3493','sf':'3493','mi':'2809','wa':'2855'}
+```
+Your should add an abbreviation for the region and corresponding spatial reference system to the list and dictionary if it is not already included. This abbreviation will be used as a prefix for most the tables that are specific to the region or spatial reference system. For example, for Washington State, you should have several new tables in your PostgreSQL database that you can view under 'Tables' in pgAdmin.
+- `wa_streets`
+- `wa_turn_restrictions`
+- `spatial_ref_sys`
+
+### Generate Traces
+In this step, the ping point data will be used to generate traces, that can then be analyzed for cruising. Most of the functions used in this section are from the `cruising_importLocationData.py` script. Remember that the `cruising_importLocationData.py` script is based on a specific data vendor and may require alteration to match the format and data structure of the location data obtained. 
+
+#### Table Names
+Set the names you would like to use for the input ping point data table (`points_table`) and output trace table (`trace_table`). These names will be used within your PostgreSQL database, and you can find the tables under these name in pgAdmin.
 ```
 points_table = 'samplepoints'
 trace_table = 'sampletraces'
-iT = importTable(points_table, 'sampleLocationData', schema = 'public', region = 'wa', forceUpdate=True)
+```
+
+#### Import Ping Locations
+Then, using these names and the filepath to your input ping data in `importTable()` to import the table into you PostgreSQL database:
+```
+iT = importTable(points_table, '[pathToPingData]', schema = '[yourSchema]', region = '[yourRegion]', forceUpdate=True)
 iT.createTable()
 iT.importCSV()
 ```
-To generate traces from the sample data, run the following code:
+
+You should have this new table in your PostgreSQL database:
+- `samplepoints`
+
+#### Generate Traces
+To generate traces from the points table, run the following code:
 ```
-pts = pointData(points_table, trace_table, schema = 'public', region = 'wa', forceUpdate=True)
-pts.geocodePoints()
-pts.processPoints()
+pts = pointData(points_table, trace_table, schema = '[yourSchema]', region = '[yourRegion]', forceUpdate=True)
+pts.geocodePoints() # Produces `raw_points_1` table
+pts.processPoints() # Produces `tmp_withlags` table
 pts.generateTraces()
 pts.generateUniqueIDs()
 ```
-### Map-matching from user-generated traces
-Once the trace table is created, from either the sample dataset or the user’s data, it can be mapmatched by running the following code:
+
+You should have these new tables in your PostgreSQL database:
+- `sample_traces`
+
+### Map-matching the Traces
+Once the trace table is generated, the can be map-matched by running the following code. Please note that this step may take several hours.
 ```
-trace_table = "[yourTraceTable]" ##same as the trace_table in the previous section
 tt = traceTable(trace_table, schema = '[yourSchema]', region = '[yourRegion]', forceUpdate=True) ## change the table, schema, etc. 
 tt.runall()
 ```
-This may take several hours, even with the sample data.
+
 ## Results and Interpretation
-Once the trips have been processed the data output can be analyzed with a spreadsheet, python, or any statistical package and GIS. See the data dictionary here.
+Once the trips have been processed, you should have several new fields added to `sampletraces`. See definitions for all of fields for all fields in the data dictionary [here](https://github.com/RegionalPlanAssoc/cruisedetector/blob/main/data_dictionary.csv) or in repository.
+
+-
