@@ -514,6 +514,9 @@ tt.runall()
 ```
 
 ## Results and Interpretation
-Once the trips have been processed, you should have several new fields added to `sampletraces`. See definitions for all of fields for all fields in the data dictionary [here](https://github.com/RegionalPlanAssoc/cruisedetector/blob/main/data_dictionary.csv) or in repository.
+Once the trips have been processed, you should have several new fields added to `sampletraces`. *See definitions for all of fields for all fields in the data dictionary [here](https://github.com/RegionalPlanAssoc/cruisedetector/blob/main/data_dictionary.csv) or in repository.*
 
--
+| Field | Description | Interpretation |
+| ----- | ----------- | -------------- |
+| cruise | | |
+| high_cruise | | |
