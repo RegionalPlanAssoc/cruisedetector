@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 """
 Estimate the prevalence of cruising in a dataset of GPS traces
-Code by: Adam Millard-Ball and Ellis Calvin
+Code by: Adam Millard-Ball, Ellis Calvin, and Will Cao
 Method developed by: Adam Millard-Ball, Rachel Weinberger, and Robert Hampshire
 Support from: Federal Highway Administration
 May 2022
@@ -14,41 +14,47 @@ global defaults
 if sys.version_info < (3, 0):
     sys.stdout.write("Sorry, requires Python 3. You are running Python 2.\n")
     sys.exit(1)
-from pathlib import Path
+try:
+    from config import *
+except ModuleNotFoundError:
+    raise Warning('config.py not found.')
 
-"""
-Defaults that the user should change
-"""
-# 1. Basepath and output folder for log
-# basePath = 'G:/Shared drives/Projects/3090_Cruising for Parking/Data/testing/'
-basePath = 'C:/cruise_base/'
+# from pathlib import Path
 
-# 2. Which regions to load streets and other data for
-defaults = {}
-defaults['regions'] = ['sf','mi','wa','il']
-
-# 3. Dictionary of coordinate reference systems for each region
-# the crs (SRID) should be recognized by PostGIS
-# if your region is missing, add it to the dictionary
-crs = {'ca':'3493','sf':'3493','mi':'2809','wa':'2855'}
-
-# 4. Path for log file. Default is in your current directory
-logPath = '.'
-
-# 5. You may need to add a directory to your sys.path
-sys.path.append(basePath)
-
-# 6. Path for osm2po with no spaces
-osm2poPath = "C:/cruise_base/" #'C:/Downloads/'
-osm2poVersion = '5.5.16' # '5.5.1'
-
-# 7. Location of mapmatching coefficient file (in this git repo). You shouldn't need to change this.
-# https://stackoverflow.com/questions/3718657/how-do-you-properly-determine-the-current-script-directory
-repoPath = Path(globals().get("__file__", "./_")).absolute().parent
-coeffFn = str(repoPath) + '/mapmatching_coefficients.txt'
-
-# 8. Specify number of processing cores to be used
-cores = 4
+### MOVED TO CONFIG.PY
+# """
+# Defaults that the user should change
+# """
+# # 1. Basepath and output folder for log
+# # basePath = 'G:/Shared drives/Projects/3090_Cruising for Parking/Data/testing/'
+# basePath = 'C:/cruise_base/'
+#
+# # 2. Which regions to load streets and other data for
+# defaults = {}
+# defaults['regions'] = ['sf','mi','wa','il','nyc']
+#
+# # 3. Dictionary of coordinate reference systems for each region
+# # the crs (SRID) should be recognized by PostGIS
+# # if your region is missing, add it to the dictionary
+# crs = {'ca':'3493','sf':'3493','mi':'2809','wa':'2855', 'nyc':'2263'}
+#
+# # 4. Path for log file. Default is in your current directory
+# logPath = '.'
+#
+# # 5. You may need to add a directory to your sys.path
+# sys.path.append(basePath)
+#
+# # 6. Path for osm2po with no spaces
+# osm2poPath = "C:/cruise_base/" #'C:/Downloads/'
+# osm2poVersion = '5.5.16' # '5.5.1'
+#
+# # 7. Location of mapmatching coefficient file (in this git repo). You shouldn't need to change this.
+# # https://stackoverflow.com/questions/3718657/how-do-you-properly-determine-the-current-script-directory
+# repoPath = Path(globals().get("__file__", "./_")).absolute().parent
+# coeffFn = str(repoPath) + '/mapmatching_coefficients.txt'
+#
+# # 8. Specify number of processing cores to be used
+# cores = 4
 
 import numpy as np
 import pandas as pd
@@ -64,15 +70,15 @@ import csv
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
-# key parameters
-maxDistThres = 1400 # maximum distance that the trace can get from the endpoint, once it enters the 400m buffer
-rollSecs = 30       # speed threshold for identification of walking segment at end of trip, and number of secs over which speed is calculated
-wSpeed = 6          # assumed maximum walking speed (km/h)
-bufferThresh = 0.5  # to be considered cruising, at least this fraction of the last portion of the trip must be within the 400m buffer
-qualityCutoff = 0.9 # To be retained, a trip must have at least this probability of being good
-r = '400'           # the buffer radius (meters)
-rd = str(int(r)*2)  # radius of donut
-mapmatch_timeout  = 300        # timeout for each individual postgres query, in seconds. Making it shorter will skip long and stubborn traces
+# # key parameters
+# maxDistThres = 1400 # maximum distance that the trace can get from the endpoint, once it enters the 400m buffer
+# rollSecs = 30       # speed threshold for identification of walking segment at end of trip, and number of secs over which speed is calculated
+# wSpeed = 6          # assumed maximum walking speed (km/h)
+# bufferThresh = 0.5  # to be considered cruising, at least this fraction of the last portion of the trip must be within the 400m buffer
+# qualityCutoff = 0.9 # To be retained, a trip must have at least this probability of being good
+# r = '400'           # the buffer radius (meters)
+# rd = str(int(r)*2)  # radius of donut
+# mapmatch_timeout  = 300        # timeout for each individual postgres query, in seconds. Making it shorter will skip long and stubborn traces
 
 def loadTables(region=None):
     """
@@ -103,7 +109,7 @@ def loadTables(region=None):
             2. graph.build.excludeWrongWays = true
     """
     os.chdir(osm2poPath)
-    osmDict = {'sf':'san-francisco_california.osm.pbf', 'mi':'michigan-latest.osm.pbf', 'ca':'california-latest.osm.pbf', 'wa':'washington-latest.osm.pbf'}
+    osmDict = {'sf':'san-francisco_california.osm.pbf', 'mi':'michigan-latest.osm.pbf', 'ca':'california-latest.osm.pbf', 'wa':'washington-latest.osm.pbf','nyc':'new-york-latest.osm.pbf'}
     print("\nConverting .osm.pbf into a routable network ( ..._4pgr.sql & ..._vertex.sql )...")
     print('%sosm2po-%s/osm2po-core-%s-signed.jar' % (osm2poPath, osm2poVersion, osm2poVersion))
     print("\tExists?: ", os.path.exists('%sosm2po-%s/osm2po-core-%s-signed.jar' % (osm2poPath, osm2poVersion, osm2poVersion)))
@@ -135,19 +141,19 @@ def loadTables(region=None):
         # Select some data from the table '_osm_2po_4pgr' to confirm we can access it.
         print("\nSelecting a sample of the %s_osm_2po_4pgr data to confirm we can access it:" % region)
         try:
-            db.execute("SELECT * FROM wa_osm_2po_4pgr LIMIT 10;")
+            db.execute("SELECT * FROM %s_osm_2po_4pgr LIMIT 10;" % region)
             sample_data = db.cursor.fetchall()
             print("Successfully fetched sample data:")
             for row in sample_data:
                 print(row)
         except Exception as e:
-            print(f"Could not fetch data from wa_osm_2po_4pgr. Make sure the table exists and is accessible. Error: {e}")
+            print(f"Could not fetch data from {region}_osm_2po_4pgr. Make sure the table exists and is accessible. Error: {e}")
 
         # Write the data to a CSV file for debugging
-        output_filename = 'C:/cruisebase/wa_osm_2po_4pgr.csv'
+        output_filename = f'C:/cruisebase/{region}_osm_2po_4pgr.csv'
         try:
             # Fetch all data from the table
-            db.execute("SELECT * FROM wa_osm_2po_4pgr;")
+            db.execute("SELECT * FROM %s_osm_2po_4pgr;" % region)
             all_data = db.cursor.fetchall()
             # Get column names from cursor description
             column_names = [desc[0] for desc in db.cursor.description]
@@ -164,19 +170,19 @@ def loadTables(region=None):
         # Select some data from the table '_osm_2po_4pgr' to confirm we can access it.
         print("\nSelecting a sample of the %s_osm_2po_vertex data to confirm we can access it:" % region)
         try:
-            db.execute("SELECT * FROM wa_osm_2po_vertex LIMIT 10;")
+            db.execute("SELECT * FROM %s_osm_2po_vertex LIMIT 10;" % region)
             sample_data = db.cursor.fetchall()
             print("Successfully fetched sample data:")
             for row in sample_data:
                 print(row)
         except Exception as e:
-            print(f"Could not fetch data from wa_osm_2po_vertex. Make sure the table exists and is accessible. Error: {e}")
+            print(f"Could not fetch data from {region}_osm_2po_vertex. Make sure the table exists and is accessible. \nERROR:\n{e}")
 
         # Write the data to a CSV file for debugging
-        output_filename = 'C:/cruisebase/wa_osm_2po_vertex.csv'
+        output_filename = f'C:/cruisebase/{region}_osm_2po_vertex.csv'
         try:
             # Fetch all data from the table
-            db.execute("SELECT * FROM wa_osm_2po_vertex;")
+            db.execute("SELECT * FROM %s_osm_2po_vertex;" % region)
             all_data = db.cursor.fetchall()
             # Get column names from cursor description
             column_names = [desc[0] for desc in db.cursor.description]
@@ -188,7 +194,7 @@ def loadTables(region=None):
                 csv_writer.writerows(all_data) # Write data rows
             print(f"\nData {region}_osm_2po_vertex successfully written to CSV:\n\t {output_filename}\n")
         except Exception as e:
-            print(f"\nAn error occurred while fetching or writing {region}_osm_2po_vertex data to CSV: {e}\n")
+            print(f"\nAn error occurred while fetching or writing {region}_osm_2po_vertex data to CSV:\nERROR:\n{e}\n")
 
         db.execute("ALTER TABLE %s_osm_2po_4pgr RENAME TO %s;" % (region, st_table))
         db.execute("ALTER TABLE %s ALTER COLUMN geom_way TYPE Geometry(LineString, %s) USING ST_Transform(geom_way, %s);" % (st_table, crs[region], crs[region]))
@@ -205,7 +211,7 @@ def loadTables(region=None):
 
         # parse the turn restrictions table, and recreate this as a table suitable for pg routing
         # see http://gis.stackexchange.com/questions/41393/does-osm2po-take-into-consideration-turn-restrictions
-        #   and http://gis.stackexchange.com/questions/69424/is-there-any-working-example-for-pgr-trsp
+        # and http://gis.stackexchange.com/questions/69424/is-there-any-working-example-for-pgr-trsp
         restrictions = db.execfetch('''SELECT restrictions, array_agg(r.id::text) AS edge_ids
                                              FROM %s_osm_2po_vertex AS n, %s AS r
                                                 WHERE restrictions IS NOT NULL
@@ -239,7 +245,7 @@ def loadTables(region=None):
 
 
 class traceTable():
-    def __init__(self, table, region='ca', nCores=cores, schema='public', logFn=None, forceUpdate=False):
+    def __init__(self, table, region='ca', nCores=cores, schema='public', speedVar=speed_Var, logFn=None, forceUpdate=False):
         """
         table: name of the Postgres table with the GPS traces
         region: the prefix of the streets and other input tables (e.g. ca_streets)
@@ -263,6 +269,7 @@ class traceTable():
         self.curblinesName = self.region+'_curblines'
         self.offstreetName = self.region+'_off_street'
 
+        self.speedVar = speedVar ## maximum speed for pgMapMatch - make sure to use the units of your projection per second!
         self.logFn = logPath+'/'+self.table+'_log.log' if logFn is None else logFn
         if 'pgLogin' not in globals(): # initialize connection
             global pgLogin  # make it available for parallel instances
@@ -334,17 +341,19 @@ class traceTable():
 
         # Drop first point of lines where the 'true' starting point exists. This is because GPS error is highest with the first point
         self.db.execute('UPDATE %s SET lines_original = lines_geom' % self.table)
+        print(f"Maximum Speed: {self.speedVar}")
         if 'start_good' in self.db.list_columns_in_table(self.table): # only for SL traces
             self.db.execute('''UPDATE %s SET lines_tmp =
                                CASE WHEN start_good is True AND ST_NPoints(lines_geom)>2 THEN ST_RemovePoint(lines_geom, 0)
                                ELSE lines_geom END;''' % self.table)
 
-            # Drop pings that are over a speed threshold
-            tc = mm.traceCleaner(self.table,'trip_id','lines_tmp', 'lines_geom', logFn=None)  # don't log because file is large!
+            # Drop pings that are over a speed threshold. Note: pgMapMatch used kmh
+            tc = mm.traceCleaner(self.table,'trip_id','lines_tmp', 'lines_geom', maxSpeed=self.speedVar/1000, logFn=None)  # don't log because file is large!
             tc.fetchAndDrop()
             self.db.execute('ALTER TABLE %s DROP COLUMN lines_tmp;' % self.table)
         else:
-            tc = mm.traceCleaner(self.table,'trip_id','lines_original', 'lines_geom', logFn=None)
+            # drop pings that are over a speed threshold. Note: pgMapMatch used kmh
+            tc = mm.traceCleaner(self.table,'trip_id','lines_original', 'lines_geom', maxSpeed=self.speedVar, logFn=None)
             tc.fetchAndDrop()
 
     def createLotPolygons(self):
@@ -364,8 +373,7 @@ class traceTable():
             offst_sql = ''
             self.writeLog('Warning: (optional) off-street parking table {} not found'.format(self.offstreetName))
         streetsClip = '''SELECT * FROM %(sts)s
-							WHERE ST_Within(geom_way, (SELECT ST_SetSRID(ST_Extent(lines_geom), %(srs)s) as table_extent FROM sampletraces))''' % {'sts':self.streets, 'srs':self.srs}
-
+							WHERE ST_Within(geom_way, (SELECT ST_SetSRID(ST_Extent(lines_geom), %(srs)s) as table_extent FROM %(sampletraces)s))''' % {'sts':self.streets, 'srs':self.srs, 'sampletraces':self.table}
 
         cmd = '''CREATE TABLE lotpolygons AS
                  (SELECT ST_Difference(lotgeom_big, streetbuffer) AS lotgeom FROM
@@ -387,7 +395,7 @@ class traceTable():
 
         self.writeLog('Truncating all lines to buffer')
         self.writeLog('...getting geometries')
-        colNames  = ['npings','id_first', 'id_firstx2', 'id_walk', 'id_park', 'maxspeed', 'speed', 'donutspeed', 'walkspeed',
+        colNames  = ['npings','id_first', 'id_firstx2', 'id_walk', 'id_park', 'speedVar', 'speed', 'donutspeed', 'walkspeed',
                     'pingtime_meanall', 'pingtime_maxall', 'pingtime_meanbuf', 'pingtime_maxbuf', 'npingsbuf', 'npingsdonut', 'npingswalk', 'pingtime_meanwalk',
                     'pt_maxwalk', 'npingspark']
         vectNames = ['lbuff_geom','lineswalk_geom','lineslot_geom','linesall_geom','startpt_geom', 'enterlot_geom','park_geom']
