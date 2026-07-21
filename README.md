@@ -313,22 +313,28 @@ To clone the pgMapMatch repository:
 Alternatively, you may download to the base directory without using GitHub Desktop by going to the cruisedetector repository in browser, clicking the green 'Code' button, and 'Download ZIP' to the base directory. After unzipping the repository, be sure to rename the folder to `cruisedetector` from `cruisedetector-main` or any other name.
 
 ##### Configuring `cruising.py`
+###### Defaults for `cruising.py`
 Configuration parameters for `cruising.py` are located in the upper portion of `config.py`, including the host, file paths, regions, spatial reference systems, and number of CPU cores used for processing. The primary changes to make for 1. and 6., which you should update with the filepath for your Cruise Detector base directory.
 ```
-"""
-Defaults that the user should change
-"""
 # 1. Basepath and output folder for log
-basePath = 'C:/cruisebase/'
+# basePath = 'G:/Shared drives/Projects/3090_Cruising for Parking/Data/testing/'
+basePath = 'C:/cruise_base/'
 
 # 2. Which regions to load streets and other data for
 defaults = {}
-defaults['regions'] = ['sf','mi','wa','il']
+defaults['regions'] = ['sf','mi','wa','il','nyc']
 
 # 3. Dictionary of coordinate reference systems for each region
 # the crs (SRID) should be recognized by PostGIS
 # if your region is missing, add it to the dictionary
-crs = {'ca':'3493','sf':'3493','mi':'2809','wa':'2855'}
+# Per pgMapMatch requirements, these thresholds and your unit system must be in meters!
+crs = {
+     'ca':'3493',
+     'sf':'3493',
+     'mi':'2809',
+     'wa':'2855', 
+     'nyc':'32118' # '2263' but with meters
+     }
 
 # 4. Path for log file. Default is in your current directory
 logPath = '.'
@@ -337,7 +343,7 @@ logPath = '.'
 sys.path.append(basePath)
 
 # 6. Path for osm2po with no spaces
-osm2poPath = "C:/cruisebase/"
+osm2poPath = "C:/cruise_base/" #'C:/Downloads/'
 osm2poVersion = '5.5.16' # '5.5.1'
 
 # 7. Location of mapmatching coefficient file (in this git repo). You shouldn't need to change this.
@@ -350,17 +356,19 @@ cores = 4
 ```
 
 ##### Configuring `cruising_importLocationData.py`
+###### Column Names for 
+These will vary based on your data. See the 'Data Requirements and Format' section below.
+
+###### Key Parameters for `cruising_importLocationData.py`
 Configuration parameters for `cruising_importLocationData.py` are located in the lower portion of `config.py`, and allow you to calibrate trace generation from GPS data and cruising identification. You should not need to make any changes here.
 ```
-#Set variables
-
 h_acc_Var = 65 #max horizontal accuracy threshold
 ping_tot_Var = 10 #min number of pings per device
 trip_ping_tot_Var = 10 #min number of pings per trip
 trip_ping_avg_Var = 90 #max average interval of pings in a trip, in seconds
-speed_Var = 130 #max plausible speed between pings, in km/hr
-trip_start_Var = 600 #pause in pings to start a new trip
-duration_Var = 300 #min duration for a trip from start to end, in seconds
+speed_Var = 180 # max plausible speed between pings, in projection units per second. (Default: 130 km/hr)
+trip_start_Var = 600 # pause in pings to start a new trip
+duration_Var = 300 # min duration for a trip from start to end, in seconds
 ```
 
 ## Data Requirements and Format
@@ -391,7 +399,16 @@ The following list is a non-exhaustive list of location data vendors.  Inclusion
 - Onemata
 - Lifesight
 
-The example workflow in this readme and the `cruising_importLocationData.py` script included in this repository have been written based on data from Quadrant containg pings in Seattle, Wa. Thus, your workflow and version of the `cruising_importLocationData.py` script may require alterations to match the format and structure of the data if an alternative source is used for this script.
+Whichever you use, be sure to update the column names appropriately within `cruisedetector/config.py` to correspond to your input data:
+```
+device_id_NAME = 'device_id'
+id_type_NAME = 'id_type'
+latitude_NAME = 'latitude'
+longitude_NAME = 'longitude'
+h_acc_NAME = 'h_acc'
+timestamp_NAME = 'timestamp'
+```
+The example workflow in this readme and the `cruising_importLocationData.py` script included in this repository have been written based on data from Quadrant containg pings in Seattle, WA. Thus, your workflow and version of the `cruising_importLocationData.py` script may require alterations to match the format and structure of the data if an alternative source is used for this script.
 
 
 #### Trip Paths
@@ -417,7 +434,8 @@ After installation and obtaining the data, the base directory should be structur
 ```
 C:\cruisebase\
 │──  cruisedetector\
-│   │── cruising.py`
+│   │── config.py
+│   │── cruising.py
 │   │── cruising_importLocationData.py
 │   │── cruising_setup.py
 │   └── [other files]
@@ -515,6 +533,8 @@ tt.runall()
 
 ## Results and Interpretation
 Once the trips have been processed, you should have several new fields added to `sampletraces`. *See definitions for all of fields for all fields in the data dictionary [here](https://github.com/RegionalPlanAssoc/cruisedetector/blob/main/data_dictionary.csv) or in repository.*
+
+** WIP **
 
 | Field | Description | Interpretation |
 | ----- | ----------- | -------------- |
