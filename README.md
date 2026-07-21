@@ -200,7 +200,7 @@ If you get bad allocation errors related to memory such as `GEOSBuffer: std::bad
 
 ### Cruise Detector Base Directory 
 
-Make a new folder that will serve as a base directory for the following components, named something identifiable such as `C:\cruisebase\`. 
+Make a new folder that will serve as a base directory for the following components, named something identifiable such as `C:\cruise_base\`. 
 * It is recommended that all filepaths involved should have no spaces in the path (i.e., do NOT use `G:\My Drive`) to guarantee the filepath is not misread by PostgreSQL.
 * For the same reason, you may wish have the base directory as close to your drive letter (i.e. `C:\`) as possible.
 
@@ -214,7 +214,7 @@ You will ultimately download [osm2po](http://osm2po.de/), [cruising](https://git
 
 You may use [GitHub Desktop](https://desktop.github.com/download/) to download cruising and pgMapMatch with version control. More instructions for each of these respositories below.
 
-You will add the following data to this base directory (i.e. `C:\cruisebase\`) as well:
+You will add the following data to this base directory (i.e. `C:\cruise_base\`) as well:
 | # | Data | Note |
 | --- | --- | --- |
 | 4 | Street Network | Download the **street network data** as an `.osm.pbf` (Open Street Maps Protocolbuffer Binary Format) file from [geofabrik.de](https://www.geofabrik.de/). The sample location data is located within Seattle and thus corresponds to [Washington State osm.pbf](https://download.geofabrik.de/north-america/us/washington.html) street network. More information is in the next section, 'Data Requirements'.
@@ -224,11 +224,11 @@ You will add the following data to this base directory (i.e. `C:\cruisebase\`) a
 #### osm2po 
 Download [osm2po](http://osm2po.de/) to the folder. 
 * This will be downloaded as a .zip archive, which you must extract using 7-Zip, "Extract all..." in Windows, or another decompressor.
-* You will have to use the path to the osm2po folder (i.e. `C:\cruisebase\osm2po-5.5.16`) to configure `cruising.py`, so as a reminder, it is recommended that the final filepath to access the executable file (i.e. `C:\cruisebase\osm2po-5.5.16\osm2po-core-5.5.16-signed.jar`) should have no spaces.
+* You will have to use the path to the osm2po folder (i.e. `C:\cruise_base\osm2po-5.5.16`) to configure `cruising.py`, so as a reminder, it is recommended that the final filepath to access the executable file (i.e. `C:\cruise_base\osm2po-5.5.16\osm2po-core-5.5.16-signed.jar`) should have no spaces.
 
 ##### Configuring `osm2po.config`
 
-You can find `osm2po.config` within the unzipped osm2po folder (i.e. `C:\cruisebase\osm2po-5.5.16`).
+You can find `osm2po.config` within the unzipped osm2po folder (i.e. `C:\cruise_base\osm2po-5.5.16`).
 
 Make a couple of changes to the `osm2po.config` configuration file to accurately reflect [turn restrictions](http://gis.stackexchange.com/questions/41393/does-osm2po-take-into-consideration-turn-restrictions) and one-way streets by un-commenting the following lines:
 
@@ -247,13 +247,13 @@ To clone the pgMapMatch repository:
 1. After installing GitHub Desktop, got to 'File' > 'Clone repository' or use the shortcut CTRL+Shift+O.
 2. Go to the right-most tab named 'URL' to install using the URL.
 3. For the first field, "Repository URL or GitHub username and repository", paste in `https://github.com/amillb/pgMapMatch` or `amillb/pgMapMatch`.
-4. For the second field, "Local path", use the filepath to the base directory followed by `pgMapMatch`, which GitHub Desktop should add by default (i.e. `C:\cruisebase\pgMapMatch`).
+4. For the second field, "Local path", use the filepath to the base directory followed by `pgMapMatch`, which GitHub Desktop should add by default (i.e. `C:\cruise_base\pgMapMatch`).
 5. You should have a the `pgMapMatch` folder when you access the base directory using File Explorer. To update at a later time, in GitHub Desktop, click 'Fetch Origin' near the top right and 'Pull'. 
 
 Alternatively, you may download to the base directory without using GitHub Desktop by going to the [pgMapMatch](https://github.com/amillb/pgMapMatch) repository in browser, clicking the green 'Code' button, and 'Download ZIP' to the base directory. After unzipping the repository, be sure to rename the folder to `pgMapMatch` from `pgMapMatch-main` or any other name.
 
 ##### Configuring `config.py`
-In the pgMapMatch folder (i.e. `C:\cruisebase\pgMapMatch\`):
+In the pgMapMatch folder (i.e. `C:\cruise_base\pgMapMatch\`):
 1. Copy `config_template.py`.
 2. Rename the copy `config.py`.
 3. Open `config.py` in a text editor of your choice.
@@ -307,7 +307,7 @@ To clone the pgMapMatch repository:
 1. After installing GitHub Desktop, got to 'File' > 'Clone repository' or use the shortcut CTRL+Shift+O.
 2. Go to the right-most tab named 'URL' to install using the URL.
 3. For the first field, "Repository URL or GitHub username and repository", paste in `https://github.com/RegionalPlanAssoc/cruisedetector` or `RegionalPlanAssoc/cruisedetector`.
-4. For the second field, "Local path", use the filepath to the base directory followed by `cruisedetector`, which GitHub Desktop should add by default (i.e. `C:\cruisebase\cruisedetector`).
+4. For the second field, "Local path", use the filepath to the base directory followed by `cruisedetector`, which GitHub Desktop should add by default (i.e. `C:\cruise_base\cruisedetector`).
 5. You should have a the `cruisedetector` folder when you access the base directory using File Explorer. To update at a later time, in GitHub Desktop, click 'Fetch Origin' near the top right and 'Pull'. 
 
 Alternatively, you may download to the base directory without using GitHub Desktop by going to the cruisedetector repository in browser, clicking the green 'Code' button, and 'Download ZIP' to the base directory. After unzipping the repository, be sure to rename the folder to `cruisedetector` from `cruisedetector-main` or any other name.
@@ -375,7 +375,7 @@ duration_Var = 300 # min duration for a trip from start to end, in seconds
 ### Street Network
 A base street network will be required in order to route a shortest path as the end a trip and compare it to the actual path.
 
-The street network should be in [OpenStreetMap's Protocolbuffer Binary Format (.pbf)](https://wiki.openstreetmap.org/wiki/PBF_Format). Extracts for broad geographic areas can be obtained from [geofabrik.de](https://www.geofabrik.de/). The extract should be saved to the the project base directory `C:\cruisebase\`, the same parent directory where you installed osm2po.
+The street network should be in [OpenStreetMap's Protocolbuffer Binary Format (.pbf)](https://wiki.openstreetmap.org/wiki/PBF_Format). Extracts for broad geographic areas can be obtained from [geofabrik.de](https://www.geofabrik.de/). The extract should be saved to the the project base directory `C:\cruise_base\`, the same parent directory where you installed osm2po.
 
 The field names for the streets table should match those in the `pgMapMatch/config.py`. Make sure the Spatial Reference System (SRS) of the streets table matches the SRS you will be using for the location or trip data, and any necessary indexes and spatial indexes have been created. Depending on the imported network, it may improve performance to clip the input street network to a convex hull around a specific study area.
 
@@ -432,7 +432,7 @@ As with the location data, the list is not comprehensive, not an endorsement nor
 After installation and obtaining the data, the base directory should be structured as follows if using all the example names provided above.
 
 ```
-C:\cruisebase\
+C:\cruise_base\
 │──  cruisedetector\
 │   │── config.py
 │   │── cruising.py
@@ -459,7 +459,7 @@ C:\cruisebase\
 Run the following to import the cruise detector scripts into Python, allowing use the function in the subsequent steps.
 ```
 import sys
-yourBasePath = 'C:/cruisebase' ## change this to your base path
+yourBasePath = 'C:/cruise_base' ## change this to your base path
 sys.path.append(f'{yourBasePath}/cruisedetector') 
 sys.path.append(yourBasePath)
 from cruising import *
